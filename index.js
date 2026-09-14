@@ -60,7 +60,9 @@ app.get('/pair', async (req, res) => {
     res.json({ error: e.message });
   }
 });
-
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Web server running on http://51.75.118.17:${PORT} - Access the dashboard to configure the bot`);
+  console.log(`\n✅ BREAKER-ULTRA-MD IS LIVE!`);
+  console.log(`📡 Port: ${PORT}`);
+  console.log(`🌐 Open your Network Tab IP:${PORT}`);
+  console.log(`Example: http://51.83.6.7:${PORT}\n`);
 });
