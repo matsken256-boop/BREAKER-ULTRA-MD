@@ -9,9 +9,10 @@
   },
   "author": "Matsken <matsken256>",
   "license": "MIT",
-  "dependencies": {
+  "de  "dependencies": {
     "@whiskeysockets/baileys": "^6.7.8",
     "pino": "^8.19.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "express": "^4.18.2"
   }
 }
