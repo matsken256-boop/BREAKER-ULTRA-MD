@@ -2,10 +2,10 @@
   "name": "breaker-ultra-md",
   "version": "1.0.0",
   "description": "Official Multi-Device WhatsApp Bot - Fast, Secure & Most Powerful by Matsken",
-  "main": "index.js",
+  "main": "start.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js"
+    "start": "node start.js"
   },
   "author": "Matsken <matsken256>",
   "license": "MIT",
