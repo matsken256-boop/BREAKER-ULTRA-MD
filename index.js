@@ -3,7 +3,7 @@ const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiske
 const pino = require('pino');
 
 const app = express();
-const PORT = process.env.PORT || 200;
+const PORT = process.env.PORT || 20130;
 
 app.get('/', (req, res) => {
   res.send(`
