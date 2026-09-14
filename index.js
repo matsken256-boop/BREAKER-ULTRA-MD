@@ -1,66 +1,66 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
-const P = require('pino')
-const fs = require('fs')
-const settings = require('./settings')
+const express = require('express');
+const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
+const pino = require('pino');
 
-async function startBot() {
- const { version } = await fetchLatestBaileysVersion()
- const { state, saveCreds } = await useMultiFileAuthState('auth_info')
- const sock = makeWASocket({
-   version,
-   auth: state,
-   logger: P({ level: 'silent' }),
-   browser: [settings.botName, "Chrome", "1.0.0"],
-   printQRInTerminal: false,
-   syncFullHistory: false
- })
- sock.ev.on('creds.update', saveCreds)
+const app = express();
+const PORT = process.env.PORT || 200;
 
- if (!sock.authState.creds.registered) {
-   const phoneNumber = settings.phoneNumber.replace(/[^0-9]/g, '')
-   console.log(`[BREAKER] Waiting 8 seconds to stabilize...`)
-   await new Promise(r => setTimeout(r, 8000))
-   try {
-     console.log(`[BREAKER] Requesting Pairing Code for ${phoneNumber}...`)
-     const code = await sock.requestPairingCode(phoneNumber)
-     console.log(`\n========================\nYOUR PAIRING CODE: ${code}\nDO NOT RESTART! LINK NOW!\n========================\n`)
-   } catch (e) {
-     console.log("Pairing Failed:", e.message)
-     console.log("Retrying in 10 sec...")
-     setTimeout(()=> startBot(), 10000)
-   }
- }
+app.get('/', (req, res) => {
+  res.send(`
+  <html>
+  <head><title>BREAKER ULTRA</title></head>
+  <body style="background:#0a0a0a;color:#00ff00;font-family:monospace;text-align:center;padding-top:60px">
+    <h1>🔥 BREAKER-ULTRA-MD 🔥</h1>
+    <h2>Web Pairing Dashboard</h2>
+    <p>Enter your WhatsApp number with country code</p>
+    <input id="num" placeholder="2567XXXXXXX" style="padding:12px;width:260px;font-size:16px;text-align:center">
+    <br><br>
+    <button onclick="getCode()" style="padding:12px 30px;background:#00ff00;color:#000;font-weight:bold;border:none;cursor:pointer;font-size:16px">GET PAIR CODE</button>
+    <h1 id="code" style="margin-top:40px;letter-spacing:5px"></h1>
+    <p id="info"></p>
+    <script>
+      async function getCode(){
+        const n = document.getElementById('num').value;
+        if(!n) return alert('Enter number');
+        document.getElementById('code').innerText = 'WAIT...';
+        document.getElementById('info').innerText = 'Generating code...';
+        const r = await fetch('/pair?number='+n);
+        const d = await r.json();
+        document.getElementById('code').innerText = d.code || d.error;
+        document.getElementById('info').innerText = d.code ? 'Enter this code in WhatsApp > Linked Devices > Link with phone number' : '';
+      }
+    </script>
+  </body>
+  </html>
+  `);
+});
 
- sock.ev.on('connection.update', async (update) => {
-   const { connection, lastDisconnect } = update
-   console.log("Connection:", connection)
-   if (connection === 'close') {
-     const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
-     if (shouldReconnect) {
-       console.log("Reconnecting...")
-       setTimeout(()=> startBot(), 3000)
-     }
-   } else if (connection === 'open') {
-     console.log(`✅✅ ${settings.botName} ONLINE & LINKED! ✅✅✅`)
-   }
- })
+app.get('/pair', async (req, res) => {
+  const number = req.query.number;
+  if (!number) return res.json({ error: 'Number required' });
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
+    const sock = makeWASocket({
+      auth: state,
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false,
+      browser: ["BREAKER-ULTRA", "Chrome", "1.0"]
+    });
+    sock.ev.on('creds.update', saveCreds);
+    if (!state.creds.registered) {
+      await delay(1500);
+      const code = await sock.requestPairingCode(number);
+      console.log('PAIR CODE:', code);
+      return res.json({ code: code });
+    } else {
+      return res.json({ error: 'Already registered. Delete auth_info_baileys to pair new number' });
+    }
+  } catch (e) {
+    console.log(e);
+    res.json({ error: e.message });
+  }
+});
 
- sock.ev.on('messages.upsert', async (m) => {
-   try {
-     const msg = m.messages[0]
-     if (!msg.message || msg.key.fromMe) return
-     const from = msg.key.remoteJid
-     const body = msg.message.conversation || msg.message.extendedTextMessage?.text || ""
-     if (!body.startsWith(settings.prefix)) return
-     const args = body.slice(settings.prefix.length).trim().split(/ +/)
-     const command = args.shift().toLowerCase()
-     if (command === 'ping') {
-       await sock.sendMessage(from, { text: `Pong! ⚡\nBot: ${settings.botName}\nOwner: ${settings.ownerName}` })
-     }
-     if (command === 'menu') {
-       await sock.sendMessage(from, { text: `*${settings.botName}* by ${settings.ownerName}\n\n.ping\n.menu\n.owner` })
-     }
-   } catch (e) { console.log(e) }
- })
-}
-startBot()
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Web server running on http://51.75.118.17:${PORT} - Access the dashboard to configure the bot`);
+});
