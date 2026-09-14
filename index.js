@@ -1,114 +1,78 @@
-
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore, delay } = require('@whiskeysockets/baileys');
 const express = require('express');
 const pino = require('pino');
+const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 20130;
+const PORT = 20130;
 let sock;
 
-async function initBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
-
-    sock = makeWASocket({
-        auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
-        },
-        logger: pino({ level: "silent" }),
-        printQRInTerminal: false,
-        browser: ["Ubuntu", "Chrome", "20.0.04"],
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === 'open') {
-            console.log('✅ BREAKER-ULTRA-MD CONNECTED! Bot is now online');
-            console.log('✅ SENDING CONNECTED MESSAGE TO OWNER...');
-            try {
-                const jid = sock.user.id;
-                await delay(3000);
-                await sock.sendMessage(jid, {
-                    text: `*✅ BREAKER-ULTRA-MD CONNECTED!* 🔥
-
-Your bot is now ACTIVE as linked device!
-Device: Google Chrome (Ubuntu)
-
-*Commands to test:*
-• Send *.ping* or *hi* - bot will reply
-• Your bot is now online 24/7 on Katabump
-
-_Now restore full commands folder if you want full menu_`
-                });
-                console.log('✅ Message sent to owner private chat!');
-            } catch (e) {
-                console.log('Could not send owner message:', e.message);
-            }
-        }
-        if (connection === 'close') {
-            const reason = lastDisconnect?.error?.output?.statusCode;
-            console.log('Connection closed, reason:', reason);
-            if (reason!== DisconnectReason.loggedOut) {
-                initBot();
-            }
-        }
-    });
-
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const m = messages[0];
-        if (!m?.message || m.key.fromMe) return;
-        const txt = m.message.conversation || m.message.extendedTextMessage?.text || "";
-        console.log(`MSG from ${m.key.remoteJid}: ${txt}`);
-
-        const lower = txt.toLowerCase();
-        if (lower === 'hi' || lower === 'hello' || lower === 'ping' || txt === '.ping' || txt === '.menu' || txt === '!menu' || txt === '!ping') {
-            await sock.sendMessage(m.key.remoteJid, { text: "*BREAKER-ULTRA-MD IS ONLINE* 🔥\n\n✅ Bot is working!\n\nType *.menu* for commands\nPowered by Chrome Ubuntu" });
-        }
-    });
-}
-
+// ===== EXPRESS SERVER =====
 app.get('/', (req, res) => {
-    res.send(`
-    <html><head><title>BREAKER ULTRA</title><meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>body{background:#0a0a0a;color:#00ff00;font-family:monospace;text-align:center;padding-top:40px}
-    input{padding:12px;width:260px;text-align:center} button{padding:12px 30px;background:#00ff00;color:#000;font-weight:bold;border:none;cursor:pointer}
-    #code{margin-top:40px;letter-spacing:8px;font-size:28px}#status{color:#fff}</style></head>
-    <body><h2>BREAKER-ULTRA-MD</h2><p>✅ LINKED AS Chrome Ubuntu</p>
-    <p>Bot is ACTIVE - Check WhatsApp private chat for connected message</p>
-    <input id="num" placeholder="2567XXXXXXXX" value="256766800757"><br><br>
-    <button onclick="getCode()">GET PAIR CODE</button>
-    <h1 id="code"></h1><p id="info"></p>
-    <script>
-    async function getCode(){
-        const n=document.getElementById('num').value;
-        if(!n) return alert('Enter number');
-        document.getElementById('info').innerText='WAIT... Generating code...';
-        const r=await fetch('/pair?number='+n);const d=await r.json();
-        document.getElementById('code').innerText=d.code||d.error;
-        document.getElementById('info').innerText=d.code?'Enter in WhatsApp > Linked Devices > Link with phone number':'';
-    }</script></body></html>`);
+    res.send(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#000;color:#0f0;text-align:center;padding:30px;font-family:monospace}input{padding:15px;width:260px}button{padding:15px 30px;background:#0f0;color:#000;font-weight:bold;border:none}h1{letter-spacing:7px;font-size:32px;color:#0f0}</style></head><body><h2>BREAKER-ULTRA-MD PAIR</h2><input id="n" value="256766800757"><br><br><button onclick="go()">GET PAIR CODE</button><h1 id="c"></h1><p id="i"></p><script>async function go(){const n=document.getElementById('n').value;document.getElementById('i').innerText='Generating...';const r=await fetch('/pair?number='+n);const d=await r.json();document.getElementById('c').innerText=d.code||d.error;document.getElementById('i').innerText=d.code?'WhatsApp > Linked Devices > Link with phone number':'Error'}</script></body></html>`);
 });
 
 app.get('/pair', async (req, res) => {
-    let number = req.query.number;
-    if (!number) return res.json({ error: 'Number required' });
-    number = number.replace(/[^0-9]/g, '');
+    let num = req.query.number?.replace(/[^0-9]/g, '');
+    if (!num) return res.json({ error: 'Number required' });
     try {
-        if (!sock) return res.json({ error: 'Bot starting, wait 5 sec and retry' });
+        if (!sock) return res.json({ error: 'Bot starting, wait 5 sec' });
         await delay(1500);
-        let code = await sock.requestPairingCode(number);
-        code = code.match(/.{1,4}/g)?.join('-') || code;
-        console.log(`PAIR CODE: ${code} FOR ${number}`);
-        res.json({ code: code });
+        let code = await sock.requestPairingCode(num);
+        code = code.match(/.{1,4}/g).join('-');
+        console.log(`\n🔑 PAIR CODE FOR ${num}: ${code}\n`);
+        res.json({ code });
     } catch (e) {
-        console.log(e);
         res.json({ error: e.message });
     }
 });
 
+// ===== WHATSAPP BOT =====
+async function initBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
+    sock = makeWASocket({
+        auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })) },
+        logger: pino({ level: "silent" }),
+        printQRInTerminal: false,
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
+    });
+    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('connection.update', async (u) => {
+        const { connection, lastDisconnect } = u;
+        if (connection === 'open') {
+            console.log('\n✅✅✅ BREAKER-ULTRA-MD CONNECTED SUCCESSFULLY! ✅✅✅\n');
+            try {
+                await delay(2000);
+                await sock.sendMessage(sock.user.id, { text: "*✅ BREAKER-ULTRA-MD ONLINE!* 🔥\n\nLinked as Chrome Ubuntu\nSend.ping to test" });
+            } catch {}
+        }
+        if (connection === 'close') {
+            const r = lastDisconnect?.error?.output?.statusCode;
+            if (r!== DisconnectReason.loggedOut) setTimeout(initBot, 3000);
+        }
+    });
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const m = messages[0];
+        if (!m?.message || m.key.fromMe) return;
+        const t = m.message.conversation || m.message.extendedTextMessage?.text || "";
+        if (t.toLowerCase() === 'ping' || t === '.ping') {
+            await sock.sendMessage(m.key.remoteJid, { text: "*PONG!* BREAKER Active!" });
+        }
+    });
+}
+
+// ===== START SERVER AND PRINT LOGIN LINK ON CONSOLE =====
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ BREAKER-ULTRA-MD IS LIVE! Port: ${PORT}`);
+    console.log('\n\n');
+    console.log('--------------------------------------------------');
+    console.log('✅ BREAKER-ULTRA-MD IS LIVE!');
+    console.log(`✅ Port: ${PORT}`);
+    console.log('--------------------------------------------------');
+    console.log(`🔗 LOGIN LINK: http://localhost:${PORT}`);
+    console.log(`🔗 ON KATABUMP: Click NETWORK TAB > Port ${PORT} > OPEN`);
+    console.log(`🔗 DIRECT LINK WILL BE: https://YOUR-WORKSPACE-${PORT}.katabump.com`);
+    console.log('--------------------------------------------------');
+    console.log('👉 Open that Network link to get Pair Code');
+    console.log('--------------------------------------------------\n\n');
     initBot();
 });
