@@ -1,8 +1,27 @@
+const express = require('express');
 
-module.exports = {
-  botName: "BREAKER-ULTRA-MD",
-  ownerName: "Matsken",
-  ownerNumber: "256747701543", // <-- NEVER CHANGE! This is the creator/owner
-  phoneNumber: "256747701543", // <-- USER CHANGE THIS! Put your bot number here
-  prefix: ".",
-}
+const fs = require('fs');
+
+const { useMultiFileAuthState } = require('@whiskeysockets/baileys');
+
+const app = express();
+
+let getSockFunc = null;
+
+function setSock(fn) { getSockFunc = fn; }
+
+function getSock() { return getSockFunc ? getSockFunc() : null; }
+
+app.get('/', (req, res) => {
+
+  if (req.query.password !== 'breaker123') return res.send('Wrong password');
+
+  res.sendFile(__dirname + '/pair.html');
+
+});
+
+app.get('/pair', async (req, res) => {
+
+  try {
+
+    if (req.query.password !== 'breaker123
