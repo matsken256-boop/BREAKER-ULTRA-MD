@@ -1,3 +1,4 @@
+const fs = require('fs');
 module.exports = {
  command: ["menu", "help", "allmenu"],
  handler: async (m, { conn }) => {
@@ -36,12 +37,8 @@ module.exports = {
 `;
 
   await conn.sendMessage(m.key.remoteJid, { 
-    image: { url: "https://i.ibb.co/YOUR-LOGO-LINK-HERE.jpg" }, 
+    image: fs.readFileSync('./resources/logo.jpg'),
     caption: menuText 
   }, { quoted: m });
-
-  // If you want to use local logo:
-  // Put this logo image I made into resources/logo.jpg
-  // Then use: { image: fs.readFileSync('./resources/logo.jpg'), caption: menuText }
  }
 }
