@@ -1,5 +1,4 @@
-const {default default: makeWASocket, defaultuseMultiFileAuthState, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
-
+const { default: makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 
 let sock;
