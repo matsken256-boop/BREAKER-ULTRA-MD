@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>BREAKER ULTRA MD</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+.box{border:2px solid #0f0;padding:30px;border-radius:15px;text-align:center;width:90%;max-width:350px}
+input{padding:12px;width:90%;border:2px solid #0f0;background:#111;color:#0f0;border-radius:8px;margin:10px 0}
+button{padding:12px 30px;background:#0f0;color:#000;border:none;border-radius:8px;font-weight:bold;cursor:pointer}
+#code{font-size:20px;margin-top:20px;word-break:break-all;color:#fff;background:#111;padding:15px;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>BREAKER ULTRA MD</h2>
+<p>Enter WhatsApp number with country code</p>
+<input id="num" placeholder="256766800757">
+<br>
+<button onclick="getCode()">GET PAIR CODE</button>
+<div id="code"></div>
+</div>
+<script>
+async function getCode(){
+let n=document.getElementById('num').value.trim();
+if(!n){alert('Enter number');return;}
+let box=document.getElementById('code');
+box.innerHTML='Loading... Please wait 10 sec';
+let pass=new URLSearchParams(window.location.search).get('password')||'breaker123';
+try{
+let r=await fetch('/code?number='+n+'&password='+pass);
+let t=await r.text();
+let d={};
+try{d=JSON.parse(t);}catch(e){d={message:t};}
+box.innerHTML=d.code||d.paircode||d.pair_code||d.msg||d.message||t||'No code';
+}catch(e){box.innerHTML='Error: '+e.message;}
+}
+</script>
+</body>
+</html>
