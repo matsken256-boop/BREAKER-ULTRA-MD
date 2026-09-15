@@ -56,20 +56,19 @@ async function initBot() {
  sock.ev.on('creds.update', saveCreds);
  sock.ev.on('connection.update', async (u) => {
   const { connection, lastDisconnect } = u;
-  if (connection === 'open') {
-   console.log('✅✅✅ CONNECTED!');
-   if (!sentWelcome) {
-    try { await delay(3000); await sock.sendMessage(sock.user.id, { text: "BOT CONNECTED ✅ SUCCESSFULLY ✅\n\n⚡ BREAKER-ULTRA-MD IS NOW ONLINE ⚡\n\nType .menu to begin" }); sentWelcome=true;
-   }
-  }
-  if (connection === 'close') {
-   const shouldReconnect = lastDisconnect?.error?.output?.statusCode!== DisconnectReason.loggedOut;
-   if (shouldReconnect) setTimeout(initBot, 3000);
-  }
- });
- sock.ev.on('messages.upsert', async ({ messages }) => {
-  const m = messages[0];
-  if (!m.message || m.key.fromMe) return;
+      if (connection === 'open') {
+      console.log('✅✅ CONNECTED!');
+            if (!sentWelcome) {
+        try { 
+          await delay(3000); 
+          await sock.sendMessage(sock.user.id, { 
+            text: "BOT CONNECTED ✅ SUCCESSFULLY ✅\n\n⚡ BREAKER-ULTRA-MD IS NOW ONLINE ⚡" 
+          }); 
+        } catch (e) { 
+          console.log(e); 
+        }
+        sentWelcome = true;
+      }
   const text = m.message.conversation || m.message.extendedTextMessage?.text || "";
   if (!text.startsWith('.')) return;
   const args = text.slice(1).trim().split(/ +/);
