@@ -1,24 +1,39 @@
-const { default: makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
-const pino = require('pino');
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
 
-let sock;
+const app = express();
+const PORT = process.env.PORT || 20130;
 
-async function startBot(){
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pair.html'));
+});
 
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+app.get('/code', async (req, res) => {
+  let number = req.query.number;
+  if (!number) return res.json({ error: 'Number required' });
+  number = number.replace(/[^0-9]/g, '');
+  try {
+    const { useMultiFileAuthState } = require('@whiskeysockets/baileys');
+    const makeWASocket = require('@whiskeysockets/baileys').default;
+    const { state, saveCreds } = await useMultiFileAuthState('./session');
+    const sock = makeWASocket({ auth: state, printQRInTerminal: false });
+    sock.ev.on('creds.update', saveCreds);
+    await new Promise(r => setTimeout(r, 2000));
+    let code = await sock.requestPairingCode(number);
+    code = code.match(/.{1,4}/g).join('-');
+    res.json({ code: code });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
 
-  const s = makeWASocket({
+app.listen(PORT, () => {
+  console.log('BREAKER ULTRA MD running on port ' + PORT);
+});
 
-    auth: {
-
-      creds: state.creds,
-
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-
-    },
-
-    logger: pino({ level: "silent" }),
-
-    printQRInTerminal: false,
-
-    browser: ["BREAKER-ULTRA-MD", "Chrome", "1.0.0"],
+try {
+  require('./start.js');
+} catch (e) {
+  console.log('start.js not found, running pair server only');
+    }
