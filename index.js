@@ -59,7 +59,7 @@ async function initBot() {
   if (connection === 'open') {
    console.log('✅✅✅ CONNECTED!');
    if (!sentWelcome) {
-    try { await delay(3000); await sock.sendMessage(sock.user.id, { text: "✅ BREAKER-ULTRA MD CONNECTED ✅ AND ONLINE" }); sentWelcome=true; } catch(e){}
+    try { await delay(3000); await sock.sendMessage(sock.user.id, { text: "BOT CONNECTED ✅ SUCCESSFULLY ✅\n\n⚡ BREAKER-ULTRA-MD IS NOW ONLINE ⚡\n\nType .menu to begin" }); sentWelcome=true;
    }
   }
   if (connection === 'close') {
