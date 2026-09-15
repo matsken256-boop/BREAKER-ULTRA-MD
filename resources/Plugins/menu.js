@@ -1,104 +1,47 @@
-const settings = require('../../settings.js');
-
 module.exports = {
-  command: ['menu','help','list','breaker','bot'],
-  category: 'general',
-  desc: 'Show all commands menu',
-  
-  async handler(m, { conn }) {
-    const prefix = settings.prefix || '.';
-    const botName = settings.botName || 'BREAKER-ULTRA-MD';
-    const ownerName = settings.ownerName || 'Matsken';
-    
-    const menuText = `
-┏━━━━━━━━━━━━━━━━━━┓
-┃  *${botName} ULTRA*
-┗━━━━━━━━━━━━━━━━━━┛
-┃
-┃ • *BOT* : ${botName}
-┃ • *OWNER* : ${ownerName}
-┃ • *PREFIX* : [ ${prefix} ]
-┃ • *COMMANDS* : 137
-┃ • *MODE* : Public
-┃ • *VERSION* : Ultra V1
-┃
-┗━━━━━━━━━━━━━━━━━━┛
+ command: ["menu", "help", "allmenu"],
+ handler: async (m, { conn }) => {
+  const menuText = `
+┌ ◇ *BREAKER-ULTRA-MD* ◇
+│ *OWNER* : BREAKER
+│ *PREFIX* : [ . ]
+│ *HOST* : Panel
+│ *PLUGINS* : 250
+│ *MODE* : Public
+│ *VERSION* : 3.0.0 ULTRA
+└───────────────
 
-> _Light | Fast | Powerful_
+╭──〔 *MAIN MENU* 〕──
+│ • .ping
+│ • .alive
+│ • .owner
+│ • .botinfo
+╰───────────────
 
-┌───〔 *AI MENU* 〕───
-│ ✦ ${prefix}gpt
-│ ✦ ${prefix}gemini
-│ ✦ ${prefix}imagine
-│ ✦ ${prefix}deepseek
-│ ✦ ${prefix}flux
-│ ✦ ${prefix}copilot
-│ ✦ ${prefix}analyze
-│ ✦ ${prefix}translate
-└──────────────
+╭──〔 *GROUP MENU* 〕──
+│ • .tagall
+│ • .kick
+│ • .add
+│ • .promote
+╰───────────────
 
-┌───〔 *DOWNLOAD MENU* 〕───
-│ ✦ ${prefix}play
-│ ✦ ${prefix}song
-│ ✦ ${prefix}video
-│ ✦ ${prefix}ytmp3
-│ ✦ ${prefix}tiktok
-│ ✦ ${prefix}fb
-│ ✦ ${prefix}ig
-│ ✦ ${prefix}apk
-│ ✦ ${prefix}gdrive
-│ ✦ ${prefix}mediafire
-└──────────────
+╭──〔 *DOWNLOAD MENU* 〕──
+│ • .play
+│ • .ytmp3
+│ • .ytmp4
+│ • .tiktok
+╰───────────────
 
-┌───〔 *GROUP MENU* 〕───
-│ ✦ ${prefix}tagall
-│ ✦ ${prefix}hidetag
-│ ✦ ${prefix}kick
-│ ✦ ${prefix}add
-│ ✦ ${prefix}promote
-│ ✦ ${prefix}demote
-│ ✦ ${prefix}antilink
-│ ✦ ${prefix}welcome
-│ ✦ ${prefix}goodbye
-│ ✦ ${prefix}link
-│ ✦ ${prefix}setppgc
-└──────────────
-
-┌───〔 *OWNER MENU* 〕───
-│ ✦ ${prefix}restart
-│ ✦ ${prefix}block
-│ ✦ ${prefix}unblock
-│ ✦ ${prefix}join
-│ ✦ ${prefix}leave
-│ ✦ ${prefix}setpp
-│ ✦ ${prefix}setbio
-│ ✦ ${prefix}eval
-│ ✦ ${prefix}update
-└──────────────
-
-┌───〔 *TOOLS MENU* 〕───
-│ ✦ ${prefix}ping
-│ ✦ ${prefix}alive
-│ ✦ ${prefix}runtime
-│ ✦ ${prefix}pair
-│ ✦ ${prefix}calc
-│ ✦ ${prefix}sticker
-│ ✦ ${prefix}tourl
-└──────────────
-
-┌───〔 *SETTINGS MENU* 〕───
-│ ✦ ${prefix}mode
-│ ✦ ${prefix}autobio
-│ ✦ ${prefix}autoread
-│ ✦ ${prefix}autolike
-│ ✦ ${prefix}setprefix
-│ ✦ ${prefix}setbotname
-└──────────────
-
-> *${botName} © ${ownerName} - 2026*
-> *Powered by Matsken Tech | Ultra Fast*
+> *© BREAKER-ULTRA-MD 2026*
 `;
 
-    await conn.sendMessage(m.chat, { text: menuText }, { quoted: m });
-  }
-  }
+  await conn.sendMessage(m.key.remoteJid, { 
+    image: { url: "https://i.ibb.co/YOUR-LOGO-LINK-HERE.jpg" }, 
+    caption: menuText 
+  }, { quoted: m });
+
+  // If you want to use local logo:
+  // Put this logo image I made into resources/logo.jpg
+  // Then use: { image: fs.readFileSync('./resources/logo.jpg'), caption: menuText }
+ }
+}
