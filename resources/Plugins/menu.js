@@ -173,7 +173,8 @@ let str = `
 │➽ ${finalPrefix}time
 ┗▣
 
-> *BREAKER-ULTRA-MD by MATSKEN* 👑
+> >  ✦ 𝐁𝐑𝐄𝐀𝐊𝐄𝐑-𝐔𝐋𝐓𝐑𝐀 𝐌𝐃 ✦
+>  ⚡ powered by 𝐌𝐀𝐓𝐒𝐊𝐄𝐍 𝐓𝐄𝐂𝐇 ⚡
 `;
 
       if (fs.existsSync(logoPath)) {
