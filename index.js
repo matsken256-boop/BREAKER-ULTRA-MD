@@ -27,24 +27,38 @@ h1{color:#00ff88}
 </head>
 <body>
 <h1>⚡ BREAKER-ULTRA MD ⚡</h1>
-<p>Official Web Login - Like CypherX</p>
+<p>Official Web Login - BREAKER-ULTRA MD</p>
 
 <div class="card">
 <h3>🔑 PAIR CODE LOGIN</h3>
-<button class="btn pair" onclick="window.location.href='/code'">GET PAIR CODE</button>
-<button class="btn pair" onclick="window.location.href='/pair'">PAIR SITE</button>
+<input id="num" placeholder="Enter WhatsApp Number e.g 2567xxxxxx" style="width:90%;padding:14px;border-radius:10px;border:none;margin-bottom:10px;text-align:center;font-size:16px">
+<button class="btn pair" onclick="getCode()">GET PAIR CODE</button>
+<div id="codeBox" style="margin-top:15px;font-size:22px;color:#00ff88;font-weight:bold"></div>
 </div>
 
 <div class="card">
 <h3>📱 QR CODE LOGIN</h3>
 <button class="btn qr" onclick="window.location.href='/qr'">GET QR CODE</button>
-<button class="btn qr" onclick="window.location.href='/wqr'">WQR LOGIN</button>
 </div>
 
 <div class="card">
 <p>Server: ${req.headers.host}</p>
 <p>Status: <span style="color:#00ff88">ONLINE ✅</span></p>
 </div>
+
+<script>
+async function getCode(){
+ let n=document.getElementById('num').value.replace(/[^0-9]/g,'');
+ if(!n) return alert('Enter number!');
+ document.getElementById('codeBox').innerHTML='⏳ Generating...';
+ let res=await fetch('/code?number='+n);
+ let data=await res.json();
+ if(data.code) document.getElementById('codeBox').innerHTML='YOUR CODE: '+data.code;
+ else document.getElementById('codeBox').innerHTML=data.error || 'Error - check console';
+}
+</script>
+</body>
+</html>
 </body>
 </html>
 `));
