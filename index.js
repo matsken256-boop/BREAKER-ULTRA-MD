@@ -10,7 +10,44 @@ const app = express();
 const PORT = process.env.PORT || settings.PORT || 3000;
 global.activeBots = {};
 global.plugins = [];
-app.get('/', (req, res) => res.send('<h2>⚡ BREAKER-ULTRA MD RUNNING ⚡</h2>'));
+app.get('/', (req, res) => res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BREAKER-ULTRA MD</title>
+<style>
+body{background:#0a0a0a;color:white;font-family:sans-serif;text-align:center;padding:20px}
+.card{background:#161616;border-radius:15px;padding:25px;margin:15px auto;max-width:400px;border:1px solid #333}
+.btn{width:100%;padding:15px;margin:10px 0;border:none;border-radius:10px;font-weight:bold;font-size:16px}
+.pair{background:#00ff88;color:black}
+.qr{background:#008cff;color:white}
+h1{color:#00ff88}
+</style>
+</head>
+<body>
+<h1>⚡ BREAKER-ULTRA MD ⚡</h1>
+<p>Official Web Login - Like CypherX</p>
+
+<div class="card">
+<h3>🔑 PAIR CODE LOGIN</h3>
+<button class="btn pair" onclick="window.location.href='/code'">GET PAIR CODE</button>
+<button class="btn pair" onclick="window.location.href='/pair'">PAIR SITE</button>
+</div>
+
+<div class="card">
+<h3>📱 QR CODE LOGIN</h3>
+<button class="btn qr" onclick="window.location.href='/qr'">GET QR CODE</button>
+<button class="btn qr" onclick="window.location.href='/wqr'">WQR LOGIN</button>
+</div>
+
+<div class="card">
+<p>Server: ${req.headers.host}</p>
+<p>Status: <span style="color:#00ff88">ONLINE ✅</span></p>
+</div>
+</body>
+</html>
+`));
 app.listen(PORT, () => {
   console.log(`Server on ${PORT}`);
   https.get('https://api.ipify.org', (res) => {
