@@ -1,62 +1,100 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const app = express();
-const PORT = process.env.PORT || 20130;
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  makeCacheableSignalKeyStore,
+  fetchLatestBaileysVersion,
+  Browsers
+} = require('@whiskeysockets/baileys')
+const P = require('pino')
+const express = require('express')
+const fs = require('fs')
+const path = require('path')
+const settings = require('./settings')
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const app = express()
+const PORT = settings.port
 
+// Pair.html server
 app.get('/', (req, res) => {
-  const realHost = req.get('host');
-  const proto = req.get('x-forwarded-proto') || req.protocol;
-  const realLink = `${proto}://${realHost}/?password=breaker123`;
+  res.sendFile(path.join(__dirname, 'pair.html'))
+})
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
 
-  console.log("");
-  console.log("========================================");
-  console.log("REAL LINK: " + realLink);
-  console.log("========================================");
-  console.log("");
+async function startBot() {
+  const { state, saveCreds } = await useMultiFileAuthState(settings.sessionName)
+  const { version } = await fetchLatestBaileysVersion()
 
-  try {
-    const alloc = fs.readFileSync('/home/container/allocations.json','utf8');
-    console.log("ALLOC RAW: " + alloc);
-  } catch(e){}
+  const sock = makeWASocket({
+    version,
+    logger: P({ level: 'silent' }),
+    printQRInTerminal: !settings.usePairingCode,
+    browser: Browsers.ubuntu('Chrome'),
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, P({ level: 'silent' }))
+    }
+  })
 
-  res.sendFile(path.join(__dirname, 'pair.html'));
-});
-
-app.get('/code', async (req, res) => {
-  const num = (req.query.number || '').replace(/[^0-9]/g,'');
-  if(!num) return res.json({error:'Number required'});
-
-  try {
-    const baileys = require('@whiskeysockets/baileys');
-    const makeWASocket = baileys.default;
-    const { useMultiFileAuthState } = baileys;
-    const { state, saveCreds } = await useMultiFileAuthState('./session');
-    
-    const sock = makeWASocket({
-      auth: state,
-      printQRInTerminal: false,
-      browser: ["Ubuntu","Chrome","20.0.04"],
-      keepAliveIntervalMs: 10000
-    });
-    
-    sock.ev.on('creds.update', saveCreds);
-    await new Promise(r => setTimeout(r, 3000));
-    let code = await sock.requestPairingCode(num);
-    code = code.match(/.{1,4}/g).join('-');
-    
-    console.log("CODE: " + code + " for " + num);
-    res.json({ code: code });
-    
-  } catch(err) {
-    console.log("ERROR: " + err.message);
-    res.json({ error: err.message });
+  // Pairing Code Logic
+  if (settings.usePairingCode && !sock.authState.creds.registered) {
+    const phoneNumber = settings.ownerNumber[0].replace(/[^0-9]/g, '')
+    setTimeout(async () => {
+      try {
+        let code = await sock.requestPairingCode(phoneNumber)
+        code = code.match(/.{1,4}/g).join('-')
+        console.log(`\n[ PAIRING CODE ] : ${code}\nGo to WhatsApp > Linked Devices > Link with phone number\n`)
+      } catch (e) {
+        console.log('Failed to get pairing code:', e)
+      }
+    }, 3000)
   }
-});
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log("BREAKER STARTED ON " + PORT);
-});
+  sock.ev.on('creds.update', saveCreds)
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update
+    if (connection === 'close') {
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+      console.log('Connection closed, reconnecting:', shouldReconnect)
+      if (shouldReconnect) startBot()
+    } else if (connection === 'open') {
+      console.log(`✅ ${settings.botName} Connected Successfully!`)
+    }
+  })
+
+  // Simple Message Handler
+  sock.ev.on('messages.upsert', async (m) => {
+    try {
+      const msg = m.messages[0]
+      if (!msg.message || msg.key.remoteJid === 'status@broadcast') return
+      
+      const from = msg.key.remoteJid
+      const type = Object.keys(msg.message)[0]
+      const body = (type === 'conversation') ? msg.message.conversation : 
+                   (type === 'extendedTextMessage') ? msg.message.extendedTextMessage.text : ''
+      
+      if (!body.startsWith(settings.prefix)) return
+      
+      const args = body.slice(settings.prefix.length).trim().split(/ +/)
+      const command = args.shift().toLowerCase()
+
+      // ---- COMMANDS ----
+      if (command === 'ping') {
+        await sock.sendMessage(from, { text: `*Pong!* _${settings.botName} is alive_\nSpeed: fast` }, { quoted: msg })
+      }
+      if (command === 'alive') {
+        await sock.sendMessage(from, { text: `*${settings.botName}*\n\nOfficial Multi-Device WhatsApp Bot\nFast, Secure, Reliable & Most Powerful\n\nOwner: ${settings.ownerName}` }, { quoted: msg })
+      }
+      
+    } catch (err) {
+      console.log('Message Error:', err)
+    }
+  })
+}
+
+startBot()
+
+// Anti-crash
+process.on('uncaughtException', (err) => console.log('Uncaught:', err))
+process.on('unhandledRejection', (err) => console.log('Unhandled:', err))
