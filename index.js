@@ -11,7 +11,13 @@ global.activeBots = {};
 global.plugins = [];
 
 app.get('/', (req, res) => res.send('<h2>⚡ BREAKER -ULTRA MD ⚡ RUNNING</h2><p>Bots: '+Object.keys(global.activeBots).length+'</p>'));
-app.listen(PORT, () => console.log(`Server on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server on ${PORT}`);
+  console.log(`\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
+  console.log(` 🔗 Web Link: http://0.0.0.0:${PORT}`);
+  console.log(` 🔑 Password: ${settings.webPassword || 'Breaker123'}`);
+  console.log(` 📡 Use your Katabump IP + :${PORT} to open it\n`);
+});
 
 // LOAD PLUGINS FROM resources/Plugins
 const pluginsPath = path.join(__dirname, 'resources', 'Plugins');
