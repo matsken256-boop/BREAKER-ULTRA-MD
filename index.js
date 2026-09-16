@@ -5,71 +5,81 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // <-- CHANGE THIS 3000 TO YOUR KATABUMP ALLOCATED PORT IF NEEDED
+const PORT = process.env.PORT || 20130; // Auto-detects Katabump port
 let pairingCache = { code: null, time: 0, number: null };
 const CODE_EXPIRE_MS = 2 * 60 * 1000; // 2 MINUTES
 
 app.use(express.static(path.join(__dirname)));
+app.use(express.json());
 
-// Serve pair.html on main link
+// Home - shows dynamic link based on who visits
 app.get('/', (req, res) => {
+  const host = req.get('host'); // AUTO-DETECTS user's allocation: e.g. 51.83.6.7:20130 or 51.83.6.8:20300 etc
+  const fullLink = `http://${host}`;
+  
   const htmlPath = path.join(__dirname, 'pair.html');
-  if(fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
-  res.send(`<h2>BREAKER-ULTRA-MD Pairing</h2><p>Go to /pair?number=2567XXXXXXX</p>`);
+  if(fs.existsSync(htmlPath)){
+    // Inject dynamic link into pair.html
+    let html = fs.readFileSync(htmlPath, 'utf8');
+    // Add banner with their real link
+    const banner = `<div style="background:#0f0;color:#000;padding:10px;text-align:center;font-weight:bold">Your Login Link: ${fullLink} - Share this to pair</div>`;
+    html = html.replace('<body>', `<body>${banner}`);
+    return res.send(html);
+  }
+  res.send(`<h2>BREAKER ULTRA MD</h2><p>Your link: ${fullLink}</p><p>Go to ${fullLink}/pair?number=2567XXXX</p>`);
 });
 
-// Pair endpoint - code lasts 2 mins
+// Pair endpoint - 2 min cache + dynamic link
 app.get('/pair', async (req,res) => {
   let number = req.query.number;
-  if(!number) return res.json({error: 'Add ?number=2567XXXXXXX'});
+  const host = req.get('host'); // This is the REAL allocation of the user who called it
+  const userLink = `http://${host}`;
+
+  if(!number) return res.json({error: 'Add ?number=2567XXXX', your_link: userLink});
   number = number.replace(/[^0-9]/g,'');
 
   try{
     const now = Date.now();
-    // If same number and code still within 2 mins, return same code
     if(pairingCache.code && pairingCache.number === number && (now - pairingCache.time) < CODE_EXPIRE_MS){
-       return res.json({code: pairingCache.code, expires_in: Math.floor((CODE_EXPIRE_MS - (now-pairingCache.time))/1000)+'s', link: `http://${req.headers.host}/`});
+       return res.json({code: pairingCache.code, expires_in: Math.floor((CODE_EXPIRE_MS - (now-pairingCache.time))/1000)+'s', your_login_link: userLink, note: 'Code valid for 2 minutes'});
     }
 
     const { state, saveCreds } = await useMultiFileAuthState('./session');
-    const sock = makeWASocket({ auth: state, logger: pino({level:'silent'}), printQRInTerminal: false, browser: ["BREAKER-ULTRA-MD","Chrome","1.0.0"]});
+    const sock = makeWASocket({ auth: state, logger: pino({level:'silent'}), browser: ["BREAKER-ULTRA-MD","Chrome","1.0.0"]});
     sock.ev.on('creds.update', saveCreds);
     
     if(state.creds.registered){
-      return res.json({error: 'Already paired! Delete ./session to pair again'});
+      return res.json({error: 'Already paired!', your_link: userLink});
     }
 
     await delay(1500);
     const code = await sock.requestPairingCode(number);
     pairingCache = { code, time: now, number };
     
-    console.log(`[ PAIRING CODE ] : ${code} for ${number} - Valid for 2 mins`);
-    console.log(`[ WEB LINK ] : http://${req.headers.host}/pair?number=${number}`);
-
-    return res.json({code, expires_in: '120s', message: 'Code valid for 2 minutes', web_link: `http://${req.headers.host}/`});
+    console.log(`[ PAIRING CODE ] : ${code} for ${number} | User Link: ${userLink} - Valid 2 mins`);
+    return res.json({code, expires_in: '120s', your_login_link: userLink});
 
   }catch(e){
     console.log(e);
-    res.json({error: e.message});
+    res.json({error: e.message, your_link: userLink});
   }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`========================================`);
   console.log(`Server running on port ${PORT}`);
-  console.log(`Local: http://localhost:${PORT}`);
-  console.log(`KATATABUMP ALLOCATION LINK:`);
-  console.log(`http://YOUR_ALLOCATED_IP:${PORT}`);
-  console.log(`Example: If your allocation is 51.75.118.17:3124`);
-  console.log(`Then your link is http://51.75.118.17:3124`);
+  console.log(`AUTO-DETECT MODE ENABLED`);
+  console.log(`Each user gets their own link automatically:`);
+  console.log(`- Check your Katabump > Network tab > IP:Port`);
+  console.log(`- Open http://YOUR_ALLOCATION_IP:PORT`);
+  console.log(`- The bot will show YOUR login link, not hardcoded`);
   console.log(`========================================`);
-  console.log(`[ INFO ] Code will now last for 2 MINUTES`);
+  console.log(`[ INFO ] Pair code lasts 2 MINUTES`);
 });
 
-// --- BOT PART ---
 async function startBot(){
   const { state, saveCreds } = await useMultiFileAuthState('./session');
-  const sock = makeWASocket({ auth: state, logger: pino({level:'silent'}), printQRInTerminal: true, browser: ["BREAKER-ULTRA-MD","Chrome","1.0.0"]});
+  const sock = makeWASocket({ auth: state, logger: pino({level:'silent'}), browser: ["BREAKER-ULTRA-MD","Chrome","1.0.0"]});
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', (u) => {
     const { connection, lastDisconnect } = u;
