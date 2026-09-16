@@ -115,21 +115,27 @@ app.get('/code', async (req, res) => {
       },120000);
 
       sock.ev.on('connection.update', async (u)=>{
-        if(u.connection === 'open'){
-          console.log('✅ PAIRED SUCCESS:',num);
-          // Copy to main session folder
-          try{
-            if(fs.existsSync('./temp_'+num)){
-              if(fs.existsSync('./session')) fs.rmSync('./session',{recursive:true,force:true});
-              fs.cpSync('./temp_'+num,'./session',{recursive:true});
-              console.log('Session saved to./session - Restart bot!');
-            }
-          }catch(e){ console.log(e); }
-        }
-      });
+  if(u.connection === 'open'){
+    console.log(`✅ PAIRED SUCCESS: ${num}`);
+    // Copy to correct multi-session folder
+    try{
+      const destPath = `./sessions/${num}`;
+      if(!fs.existsSync('./sessions')) fs.mkdirSync('./sessions');
+      if(fs.existsSync(`./temp_${num}`)){
+        if(fs.existsSync(destPath)) fs.rmSync(destPath, {recursive:true, force:true});
+        fs.cpSync(`./temp_${num}`, destPath, {recursive:true});
+        fs.rmSync(`./temp_${num}`, {recursive:true, force:true});
+        console.log(`Session saved to ${destPath} - Restarting...`);
+        setTimeout(()=> startBot(num), 2000);
+      }
+    }catch(e){ console.log(e); }
+  }
+  if(u.connection === 'close'){
+    console.log('Connection closed for pairing', num);
+  }
+});
 
-      return res.json({code: code});
-    }
+return res.json({code: code});
 
   } catch(e){
     console.log(e);
@@ -176,7 +182,7 @@ async function startBot(number) {
   const sock = makeWASocket({
     logger: pino({ level: 'silent' }),
     auth: state,
-    browser: ['BREAKER-ULTRA', 'Chrome', '1.0']
+    browser: ['Ubuntu', 'Chrome', '20.0.04']
   });
 
   sock.ev.on('creds.update', saveCreds);
