@@ -3,13 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
 const pino = require('pino');
+const settings = require('./settings');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || settings.PORT || 3000;
 global.activeBots = {};
 global.plugins = [];
 
-app.get('/', (req, res) => res.send('<h2>⚡BREAKER -ULTRA MD ⚡ RUNNING</h2><p>Bots: ' + Object.keys(global.activeBots).length + '</p>'));
+app.get('/', (req, res) => res.send('<h2>⚡ BREAKER -ULTRA MD ⚡ RUNNING</h2><p>Bots: '+Object.keys(global.activeBots).length+'</p>'));
 app.listen(PORT, () => console.log(`Server on ${PORT}`));
 
 // LOAD PLUGINS FROM resources/Plugins
