@@ -47,14 +47,29 @@ h1{color:#00ff88}
 </div>
 
 <script>
+let timer;
 async function getCode(){
  let n=document.getElementById('num').value.replace(/[^0-9]/g,'');
  if(!n) return alert('Enter number!');
  document.getElementById('codeBox').innerHTML='⏳ Generating...';
  let res=await fetch('/code?number='+n);
  let data=await res.json();
- if(data.code) document.getElementById('codeBox').innerHTML='YOUR CODE: '+data.code;
- else document.getElementById('codeBox').innerHTML=data.error || 'Error - check console';
+ if(data.code){
+   let sec = 60;
+   document.getElementById('codeBox').innerHTML='YOUR CODE: '+data.code+'<br><span id="count" style="font-size:16px;color:yellow">Expires in: 60s</span>';
+   clearInterval(timer);
+   timer=setInterval(()=>{
+     sec--;
+     let el=document.getElementById('count');
+     if(el) el.innerHTML='Expires in: '+sec+'s - ENTER NOW!';
+     if(sec<=0){
+       clearInterval(timer);
+       document.getElementById('codeBox').innerHTML='❌ Code Expired! Click again';
+     }
+   },1000);
+ } else {
+   document.getElementById('codeBox').innerHTML=data.error || 'Error';
+ }
 }
 </script>
 </body>
