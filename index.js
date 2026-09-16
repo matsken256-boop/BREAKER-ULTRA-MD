@@ -111,52 +111,49 @@ app.get('/code', async (req, res) => {
 
       // keep socket alive 120 seconds
           sock.ev.on('connection.update', async (u)=>{
-      if(u.connection === 'open'){
-        console.log(`✅ PAIRED SUCCESS: ${num}`);
+          if(u.connection === 'open'){
+        console.log('✅ PAIRED SUCCESS: ' + num);
         try{
-          const destPath = `./sessions/${num}`;
-          if(fs.existsSync('./sessions')) fs.mkdirSync('./sessions');
-          if(fs.existsSync(`./temp_${num}`)){
+          const destPath = './sessions/' + num;
+          if(!fs.existsSync('./sessions')) fs.mkdirSync('./sessions');
+          if(fs.existsSync('./temp_' + num)){
             if(fs.existsSync(destPath)) fs.rmSync(destPath, {recursive:true, force:true});
-            fs.cpSync(`./temp_${num}`, destPath, {recursive:true});
-            fs.rmSync(`./temp_${num}`, {recursive:true, force:true});
-            console.log(`Session saved to ${destPath} - Restarting...`);
+            fs.cpSync('./temp_' + num, destPath, {recursive:true});
+            fs.rmSync('./temp_' + num, {recursive:true, force:true});
+            console.log('Session saved to ' + destPath + ' - Restarting...');
             setTimeout(()=> startBot(num), 2000);
           }
         }catch(e){ console.log(e); }
       }
       if(u.connection === 'close'){
-        console.log('Connection closed for pairing', num);
+        console.log('Connection closed for pairing: ' + num);
       }
-});
-
-return res.json({code: code});
-
-  } catch(e){
-    console.log(e);
-    res.json({error: e.message});
+    });
+    return res.json({code: code});
   }
+ }catch(e){
+  console.log(e);
+  res.json({error: e.message});
+ }
 });
 
 app.get('/qr', async (req,res)=>{
-  res.send('QR feature coming - use Pair Code for now!');
-});
+  res.send('QR feature coming - use Pair Code for now');
 app.listen(PORT, () => {
-  console.log(`Server on ${PORT}`);
+  console.log('Server on ' + PORT);
   https.get('https://api.ipify.org', (res) => {
     let ip = '';
     res.on('data', d => ip += d);
     res.on('end', () => {
-      console.log(`\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
-      console.log(` 🔗 Web Link: http://${ip.trim()}:${PORT} \n`);
+      console.log('\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡');
+      console.log(' 🔗 Web Link: http://' + ip.trim() + ':' + PORT + ' \n');
     });
   }).on('error', () => {
-      console.log(`\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
-      console.log(` 🔗 Web Link: http://0.0.0.0:${PORT} \n`);
+    console.log('\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡');
+    console.log(' 🔗 Web Link: http://0.0.0.0:' + PORT + ' \n');
   });
 });
 
-// LOAD PLUGINS FROM resources/Plugins
 const pluginsPath = path.join(__dirname, 'resources', 'Plugins');
 if (fs.existsSync(pluginsPath)) {
   fs.readdirSync(pluginsPath).forEach(file => {
@@ -164,12 +161,11 @@ if (fs.existsSync(pluginsPath)) {
       try {
         const plugin = require(path.join(pluginsPath, file));
         global.plugins.push(plugin);
-      } catch (e) { console.log(`Failed plugin ${file}:`, e.message); }
+      } catch (e) { console.log('Failed plugin ' + file + ': ' + e.message); }
     }
   });
-  console.log(`✅ Loaded ${global.plugins.length} plugins`);
+  console.log('✅ Loaded ' + global.plugins.length + ' plugins');
 }
-
 async function startBot(number) {
   const sessionPath = path.join(__dirname, 'sessions', number);
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
