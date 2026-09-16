@@ -2,13 +2,14 @@
 <html>
 <head>
 <title>BREAKER ULTRA MD</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body{background:#000;color:#0f0;font-family:monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
-.box{border:2px solid #0f0;padding:30px;border-radius:15px;text-align:center;width:90%;max-width:350px}
-input{padding:12px;width:90%;border:2px solid #0f0;background:#111;color:#0f0;border-radius:8px;margin:10px 0}
-button{padding:12px 30px;background:#0f0;color:#000;border:none;border-radius:8px;font-weight:bold;cursor:pointer}
-#code{font-size:20px;margin-top:20px;word-break:break-all;color:#fff;background:#111;padding:15px;border-radius:8px}
+.box{border:2px solid #0f0;padding:30px;border-radius:15px;text-align:center;max-width:400px;width:90%}
+input{padding:12px;width:90%;border:2px solid #0f0;background:#000;color:#0f0;text-align:center;font-size:16px;margin:10px 0}
+button{padding:12px 30px;background:#0f0;color:#000;border:none;font-weight:bold;cursor:pointer;font-size:16px;margin-top:10px}
+#code{font-size:28px;margin-top:20px;word-break:break-all;letter-spacing:4px;color:#fff}
+#info{margin-top:10px;font-size:14px}
 </style>
 </head>
 <body>
@@ -19,21 +20,27 @@ button{padding:12px 30px;background:#0f0;color:#000;border:none;border-radius:8p
 <br>
 <button onclick="getCode()">GET PAIR CODE</button>
 <div id="code"></div>
+<p id="info"></p>
 </div>
 <script>
 async function getCode(){
-let n=document.getElementById('num').value.trim();
-if(!n){alert('Enter number');return;}
-let box=document.getElementById('code');
-box.innerHTML='Loading... Please wait 10 sec';
-let pass=new URLSearchParams(window.location.search).get('password')||'breaker123';
-try{
-let r=await fetch('/code?number='+n+'&password='+pass);
-let t=await r.text();
-let d={};
-try{d=JSON.parse(t);}catch(e){d={message:t};}
-box.innerHTML=d.code||d.paircode||d.pair_code||d.msg||d.message||t||'No code';
-}catch(e){box.innerHTML='Error: '+e.message;}
+ let n=document.getElementById('num').value.trim();
+ if(!n){alert('Enter number');return;}
+ let box=document.getElementById('code');
+ let info=document.getElementById('info');
+ box.innerHTML='Loading... Please wait 10 sec';
+ info.innerHTML='';
+ try{
+  let r=await fetch('/pair?number='+n);
+  let d=await r.json();
+  if(d.code){
+    box.innerHTML=d.code;
+    info.innerHTML='Copy this code: Open WhatsApp > Linked Devices > Link a Device > Link with phone number';
+  } else {
+    box.innerHTML=d.error || 'Failed';
+    info.innerHTML='';
+  }
+ }catch(e){box.innerHTML='Error: '+e.message;}
 }
 </script>
 </body>
