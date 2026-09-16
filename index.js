@@ -60,23 +60,66 @@ async function getCode(){
 </body>
 </html>
 `));
+const activeSockets = {};
+
 app.get('/code', async (req, res) => {
   let num = req.query.number;
   if(!num) return res.json({error:'Enter number'});
   num = num.replace(/[^0-9]/g,'');
+
   const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
   const pino = require('pino');
+  const fs = require('fs');
+
   try {
+    // delete old temp if exists
+    if(fs.existsSync('./temp_'+num)) fs.rmSync('./temp_'+num,{recursive:true,force:true});
+
     const { state, saveCreds } = await useMultiFileAuthState('./temp_'+num);
-    const sock = makeWASocket({ auth: state, logger: pino({level:'silent'}), printQRInTerminal:false, browser:['BREAKER-ULTRA','Chrome','1.0'] });
+    const sock = makeWASocket({
+      auth: state,
+      logger: pino({level:'silent'}),
+      printQRInTerminal:false,
+      browser:['Ubuntu','Chrome','20.0.04'],
+      syncFullHistory:false
+    });
+
+    activeSockets[num] = sock;
+    sock.ev.on('creds.update', saveCreds);
+
+    // Wait for socket to be ready
+    await delay(3000);
+
     if(!sock.authState.creds.registered){
-      await delay(2000);
       let code = await sock.requestPairingCode(num);
       code = code?.match(/.{1,4}/g)?.join('-') || code;
+
+      // keep socket alive 120 seconds
+      setTimeout(()=>{
+        try{ sock.end(); delete activeSockets[num]; }catch{}
+      },120000);
+
+      sock.ev.on('connection.update', async (u)=>{
+        if(u.connection === 'open'){
+          console.log('✅ PAIRED SUCCESS:',num);
+          // Copy to main session folder
+          try{
+            if(fs.existsSync('./temp_'+num)){
+              if(fs.existsSync('./session')) fs.rmSync('./session',{recursive:true,force:true});
+              fs.cpSync('./temp_'+num,'./session',{recursive:true});
+              console.log('Session saved to./session - Restart bot!');
+            }
+          }catch(e){ console.log(e); }
+        }
+      });
+
       return res.json({code: code});
     }
-    sock.ev.on('creds.update', saveCreds);
-  } catch(e){ res.json({error: e.message}); }
+
+  } catch(e){
+    console.log(e);
+    res.json({error: e.message});
+  }
 });
 
 app.get('/qr', async (req,res)=>{
