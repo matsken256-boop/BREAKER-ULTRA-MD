@@ -59,9 +59,29 @@ async function getCode(){
 </script>
 </body>
 </html>
-</body>
-</html>
 `));
+app.get('/code', async (req, res) => {
+  let num = req.query.number;
+  if(!num) return res.json({error:'Enter number'});
+  num = num.replace(/[^0-9]/g,'');
+  const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
+  const pino = require('pino');
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState('./temp_'+num);
+    const sock = makeWASocket({ auth: state, logger: pino({level:'silent'}), printQRInTerminal:false, browser:['BREAKER-ULTRA','Chrome','1.0'] });
+    if(!sock.authState.creds.registered){
+      await delay(2000);
+      let code = await sock.requestPairingCode(num);
+      code = code?.match(/.{1,4}/g)?.join('-') || code;
+      return res.json({code: code});
+    }
+    sock.ev.on('creds.update', saveCreds);
+  } catch(e){ res.json({error: e.message}); }
+});
+
+app.get('/qr', async (req,res)=>{
+  res.send('QR feature coming - use Pair Code for now!');
+});
 app.listen(PORT, () => {
   console.log(`Server on ${PORT}`);
   https.get('https://api.ipify.org', (res) => {
