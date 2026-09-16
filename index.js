@@ -110,29 +110,24 @@ app.get('/code', async (req, res) => {
       code = code?.match(/.{1,4}/g)?.join('-') || code;
 
       // keep socket alive 120 seconds
-      setTimeout(()=>{
-        try{ sock.end(); delete activeSockets[num]; }catch{}
-      },120000);
-
-      sock.ev.on('connection.update', async (u)=>{
-  if(u.connection === 'open'){
-    console.log(`✅ PAIRED SUCCESS: ${num}`);
-    // Copy to correct multi-session folder
-    try{
-      const destPath = `./sessions/${num}`;
-      if(!fs.existsSync('./sessions')) fs.mkdirSync('./sessions');
-      if(fs.existsSync(`./temp_${num}`)){
-        if(fs.existsSync(destPath)) fs.rmSync(destPath, {recursive:true, force:true});
-        fs.cpSync(`./temp_${num}`, destPath, {recursive:true});
-        fs.rmSync(`./temp_${num}`, {recursive:true, force:true});
-        console.log(`Session saved to ${destPath} - Restarting...`);
-        setTimeout(()=> startBot(num), 2000);
+          sock.ev.on('connection.update', async (u)=>{
+      if(u.connection === 'open'){
+        console.log(`✅ PAIRED SUCCESS: ${num}`);
+        try{
+          const destPath = `./sessions/${num}`;
+          if(fs.existsSync('./sessions')) fs.mkdirSync('./sessions');
+          if(fs.existsSync(`./temp_${num}`)){
+            if(fs.existsSync(destPath)) fs.rmSync(destPath, {recursive:true, force:true});
+            fs.cpSync(`./temp_${num}`, destPath, {recursive:true});
+            fs.rmSync(`./temp_${num}`, {recursive:true, force:true});
+            console.log(`Session saved to ${destPath} - Restarting...`);
+            setTimeout(()=> startBot(num), 2000);
+          }
+        }catch(e){ console.log(e); }
       }
-    }catch(e){ console.log(e); }
-  }
-  if(u.connection === 'close'){
-    console.log('Connection closed for pairing', num);
-  }
+      if(u.connection === 'close'){
+        console.log('Connection closed for pairing', num);
+      }
 });
 
 return res.json({code: code});
