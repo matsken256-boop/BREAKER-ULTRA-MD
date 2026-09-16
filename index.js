@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const https = require('https');
 const path = require('path');
 const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
 const pino = require('pino');
@@ -10,13 +11,19 @@ const PORT = process.env.PORT || settings.PORT || 3000;
 global.activeBots = {};
 global.plugins = [];
 
-app.get('/', (req, res) => res.send('<h2>⚡ BREAKER -ULTRA MD ⚡ RUNNING</h2><p>Bots: '+Object.keys(global.activeBots).length+'</p>'));
 app.listen(PORT, () => {
   console.log(`Server on ${PORT}`);
-  console.log(`\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
-  console.log(` 🔗 Web Link: http://0.0.0.0:${PORT}`);
-  console.log(` 🔑 Password: ${settings.webPassword || 'Breaker123'}`);
-  console.log(` 📡 Use your Katabump IP + :${PORT} to open it\n`);
+  https.get('https://api.ipify.org', (res) => {
+    let ip = '';
+    res.on('data', d => ip += d);
+    res.on('end', () => {
+      console.log(`\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
+      console.log(` 🔗 Web Link: http://${ip.trim()}:${PORT} \n`);
+    });
+  }).on('error', () => {
+      console.log(`\n ⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
+      console.log(` 🔗 Web Link: http://0.0.0.0:${PORT} \n`);
+  });
 });
 
 // LOAD PLUGINS FROM resources/Plugins
