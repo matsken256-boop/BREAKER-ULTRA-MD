@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || settings.PORT || 3000;
 global.activeBots = {};
 global.plugins = [];
-
+app.get('/', (req, res) => res.send('<h2>⚡ BREAKER-ULTRA MD RUNNING ⚡</h2>'));
 app.listen(PORT, () => {
   console.log(`Server on ${PORT}`);
   https.get('https://api.ipify.org', (res) => {
