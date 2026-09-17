@@ -63,15 +63,28 @@ app.get('/pair', async (req, res) => {
   if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    const sock = makeWASocket({ auth: state, logger: pino({ level: 'silent' }), browser: ['BREAKER-ULTRA', 'Chrome', '1.0.0'] });
-    sock.ev.on('creds.update', saveCreds);
-    if (!sock.authState.creds.registered) {
-      await delay(1500);
-      let code = await sock.requestPairingCode(num);
-      code = code?.match(/.{1,4}/g)?.join('-') || code;
-      res.send(`<html><body style="background:#0f172a;color:white;text-align:center;padding:30px"><div style="background:#1e293b;padding:20px;border-radius:12px;max-width:400px;margin:auto"><h2>Code: ${code}</h2><p>WhatsApp > Linked Devices > Link with number</p><a href="/" style="color:#25D366">Back</a></div></body></html>`);
-    } else {
-      res.send('Already paired!');
+const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+
+const sock = makeWASocket({
+    auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }).child({ level: 'silent' }))
+    },
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ["Ubuntu", "Chrome", "20.0.04"]
+});
+
+sock.ev.on('creds.update', saveCreds);
+
+if (!sock.authState.creds.registered) {
+    await new Promise(r => setTimeout(r, 2000));
+    let code = await sock.requestPairingCode(num);
+    code = code?.match(/.{1,4}/g)?.join('-') || code;
+    res.send(`<html><body style="background:#0f172a;color:white;text-align:center;padding:50px"><h1>CODE: ${code}</h1><p>Enter this in WhatsApp > Linked Devices > Link with phone number</p></body></html>`);
+} else {
+    res.send('Already paired!');
+}
     }
   } catch (e) {
     res.send('Error: ' + e.message);
