@@ -85,7 +85,6 @@ if (!sock.authState.creds.registered) {
 } else {
     res.send('Already paired!');
 }
-    }
   } catch (e) {
     res.send('Error: ' + e.message);
   }
