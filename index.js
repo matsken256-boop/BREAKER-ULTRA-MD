@@ -2,17 +2,30 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } 
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
 
-const __dirname_path = __dirname;
-const sessionsDir = path.join(__dirname_path, 'sessions');
-const pluginsDir = path.join(__dirname_path, 'plugins');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('MatsKen Bot is Running - Server Online ✅');
+});
+
+app.listen(PORT, () => {
+  console.log('Server listening on port ' + PORT);
+});
+
+const sessionsDir = path.join(__dirname, 'sessions');
+const pluginsDir = path.join(__dirname, 'plugins');
 
 global.plugins = [];
 
-// Load plugins
 function loadPlugins() {
   global.plugins = [];
-  if (!fs.existsSync(pluginsDir)) return;
+  if (!fs.existsSync(pluginsDir)) {
+    fs.mkdirSync(pluginsDir, { recursive: true });
+    return;
+  }
   const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
   for (let file of files) {
     try {
@@ -34,7 +47,7 @@ async function startBot(sessionName) {
   const sock = makeWASocket({
     auth: state,
     logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
+    printQRInTerminal: true,
     browser: ['MatsKen Bot', 'Chrome', '1.0.0']
   });
 
@@ -43,7 +56,8 @@ async function startBot(sessionName) {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode!== DisconnectReason.loggedOut;
+      console.log('Connection closed, reconnecting: ' + shouldReconnect);
       if (shouldReconnect) {
         startBot(sessionName);
       }
@@ -56,7 +70,7 @@ async function startBot(sessionName) {
     const m = messages[0];
     if (!m.message || m.key.fromMe) return;
 
-    const text = m.message.conversation || m.message.extendedTextMessage?.text || '';
+    const text = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || '';
     if (!text) return;
 
     const prefix = '.';
@@ -69,11 +83,9 @@ async function startBot(sessionName) {
     for (let plugin of global.plugins) {
       let names = [];
       if (plugin.name) {
-        names = [plugin.name.toLowerCase(), ...(plugin.alias || []).map(a => a.toLowerCase())];
+        names = [plugin.name.toLowerCase(),...(plugin.alias || []).map(a => a.toLowerCase())];
       } else if (plugin.command) {
         names = plugin.command.map(c => c.toLowerCase());
-      } else if (Array.isArray(plugin.name)) {
-        names = plugin.name.map(n => n.toLowerCase());
       }
 
       if (names.includes(cmdName)) {
@@ -91,15 +103,30 @@ async function startBot(sessionName) {
 }
 
 async function loadAllSessions() {
-  const sessionsDirPath = path.join(__dirname_path, 'sessions');
-  if (!fs.existsSync(sessionsDirPath)) fs.mkdirSync(sessionsDirPath, { recursive: true });
-  const folders = fs.readdirSync(sessionsDirPath);
+  if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
+  const folders = fs.readdirSync(sessionsDir);
+
+  if (folders.length === 0) {
+    console.log('No sessions found, waiting for new session...');
+    // Keep process alive even with no sessions
+    return;
+  }
+
   for (let num of folders) {
-    if (fs.lstatSync(path.join(sessionsDirPath, num)).isDirectory()) {
+    const fullPath = path.join(sessionsDir, num);
+    if (fs.lstatSync(fullPath).isDirectory()) {
+      console.log('Starting bot: ' + num);
       await startBot(num);
-      await delay(1000);
+      await delay(1500);
     }
   }
 }
 
 loadAllSessions();
+
+// Keep process alive
+process.on('uncaughtException', (e) => {
+  console.log('Uncaught:', e);
+});
+
+console.log('MatsKen Bot Starting...');
