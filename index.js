@@ -84,7 +84,6 @@ if (!sock.authState.creds.registered) {
     res.send(`<html><body style="background:#0f172a;color:white;text-align:center;padding:50px"><h1>CODE: ${code}</h1><p>Enter this in WhatsApp > Linked Devices > Link with phone number</p></body></html>`);
 } else {
     res.send('Already paired!');
-}
   } catch (e) {
     res.send('Error: ' + e.message);
   }
