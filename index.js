@@ -84,4 +84,73 @@ app.listen(PORT, HOST, async () => {
 
   console.log(`✅Loaded ${global.plugins? global.plugins.length : 3} plugins`);
   console.log(`Server on ${PORT}`);
-  console.log(`⚡ BREAKER-ULTRA MD WEB LOGIN
+  console.log(`⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
+  console.log(`🔗Web Link: http://${displayIp}:${PORT}`);
+  console.log(`🔗Also open via your Katabump allocation link - Auto-detected!`);
+});
+
+const sessionsDir = path.join(__dirname, 'sessions');
+const pluginsDir = path.join(__dirname, 'plugins');
+global.plugins = [];
+
+function loadPlugins() {
+  global.plugins = [];
+  if (!fs.existsSync(pluginsDir)) { fs.mkdirSync(pluginsDir, { recursive: true }); return; }
+  const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
+  for (let file of files) {
+    try {
+      delete require.cache[require.resolve(path.join(pluginsDir, file))];
+      const plugin = require(path.join(pluginsDir, file));
+      global.plugins.push(plugin);
+    } catch {}
+  }
+}
+loadPlugins();
+
+async function startBot(sessionName) {
+  const sessionPath = path.join(sessionsDir, sessionName);
+  const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+  const sock = makeWASocket({ auth: state, logger: pino({ level: 'silent' }), browser: ['BREAKER-ULTRA', 'Chrome', '1.0.0'] });
+  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('connection.update', async (u) => {
+    if (u.connection === 'close') {
+      const shouldReconnect = u.lastDisconnect?.error?.output?.statusCode!== DisconnectReason.loggedOut;
+      if (shouldReconnect) startBot(sessionName);
+    } else if (u.connection === 'open') {
+      console.log('Connected: ' + sessionName);
+    }
+  });
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const m = messages[0];
+    if (!m.message || m.key.fromMe) return;
+    const text = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || '';
+    if (!text.startsWith('.')) return;
+    const args = text.slice(1).trim().split(/ +/);
+    const cmdName = args.shift().toLowerCase();
+    m.chat = m.key.remoteJid;
+    for (let plugin of global.plugins) {
+      let names = [];
+      if (plugin.name) names = [plugin.name.toLowerCase(),...(plugin.alias||[]).map(a=>a.toLowerCase())];
+      else if (plugin.command) names = plugin.command.map(c=>c.toLowerCase());
+      if (names.includes(cmdName)) {
+        try {
+          if (plugin.run) await plugin.run(sock, m, { args });
+          else if (plugin.handler) await plugin.handler(m, { sock, args });
+        } catch (e) { console.log('Error ' + cmdName + ': ' + e); }
+      }
+    }
+  });
+}
+
+async function loadAllSessions() {
+  if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
+  const folders = fs.readdirSync(sessionsDir);
+  for (let num of folders) {
+    const p = path.join(sessionsDir, num);
+    if (fs.lstatSync(p).isDirectory() && fs.readdirSync(p).length > 0) {
+      await startBot(num);
+      await delay(1000);
+    }
+  }
+}
+loadAllSessions();
