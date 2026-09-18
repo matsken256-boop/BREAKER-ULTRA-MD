@@ -60,11 +60,9 @@ app.get('/pair', async (req, res) => {
   if (!num) return res.send('Add?number=2567XXXXXX');
   const sessionPath = path.join(__dirname, 'sessions', num);
   if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
-
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
-
     const sock = makeWASocket({
       auth: {
         creds: state.creds,
@@ -74,14 +72,12 @@ app.get('/pair', async (req, res) => {
       printQRInTerminal: false,
       browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
-
     sock.ev.on('creds.update', saveCreds);
-
     if (!sock.authState.creds.registered) {
       await new Promise(r => setTimeout(r, 2000));
       let code = await sock.requestPairingCode(num);
       code = code?.match(/.{1,4}/g)?.join('-') || code;
-      res.send(`<html><body style='background:#0f172a;color:white;text-align:center'>${code}</body></html>`);
+      res.send(`<html><body style='background:#0f172a;color:white;text-align:center'>CODE: ${code}<br>Enter this in WhatsApp > Linked Devices</body></html>`);
     } else {
       res.send('Already paired!');
     }
