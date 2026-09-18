@@ -55,40 +55,40 @@ app.get('/', async (req, res) => {
     </div></body></html>
   `);
 });
-
 app.get('/pair', async (req, res) => {
   let num = req.query.number?.replace(/[^0-9]/g, '');
-  if (!num) return res.send('Add?number=2567XXXXXXXX');
+  if (!num) return res.send('Add?number=2567XXXXXX');
   const sessionPath = path.join(__dirname, 'sessions', num);
   if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
+
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+    const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 
-const sock = makeWASocket({
-    auth: {
+    const sock = makeWASocket({
+      auth: {
         creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }).child({ level: 'silent' }))
-    },
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ["Ubuntu", "Chrome", "20.0.04"]
-});
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
+      },
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false,
+      browser: ["Ubuntu", "Chrome", "20.0.04"]
+    });
 
-sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', saveCreds);
 
-if (!sock.authState.creds.registered) {
-    await new Promise(r => setTimeout(r, 2000));
-    let code = await sock.requestPairingCode(num);
-    code = code?.match(/.{1,4}/g)?.join('-') || code;
-    res.send(`<html><body style="background:#0f172a;color:white;text-align:center;padding:50px"><h1>CODE: ${code}</h1><p>Enter this in WhatsApp > Linked Devices > Link with phone number</p></body></html>`);
-} else {
-    res.send('Already paired!');
+    if (!sock.authState.creds.registered) {
+      await new Promise(r => setTimeout(r, 2000));
+      let code = await sock.requestPairingCode(num);
+      code = code?.match(/.{1,4}/g)?.join('-') || code;
+      res.send(`<html><body style='background:#0f172a;color:white;text-align:center'>${code}</body></html>`);
+    } else {
+      res.send('Already paired!');
+    }
   } catch (e) {
     res.send('Error: ' + e.message);
   }
 });
-
 app.listen(PORT, HOST, async () => {
   const ip = await getPublicIP();
   const displayIp = ip || 'YOUR-SERVER-IP';
