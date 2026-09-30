@@ -24,5 +24,5 @@ module.exports = {
   PORT: process.env.PORT || 3000,
 
   // Your Github username (must have forked the repo)
-  GITHUB_USERNAME: process.env.GITHUB_USERNAME || 'matsken256',
+  GITHUB_USERNAME: process.env.GITHUB_USERNAME || 'matsken256-boop',
 };
