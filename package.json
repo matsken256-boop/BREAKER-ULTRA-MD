@@ -1,7 +1,7 @@
 {
   "name": "breaker-ultra-md",
   "version": "2.7.0",
-  "description": "Official Multi-Device WhatsApp Bot - Fast, Secure reliable & most Powerful",
+  "description": "Official Multi-Device WhatsApp Bot",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
@@ -15,6 +15,7 @@
     "axios": "^1.7.2",
     "file-type": "^16.5.4",
     "node-cache": "^5.1.2",
-    "moment-timezone": "^0.5.45"
+    "moment-timezone": "^0.5.45",
+    "mongoose": "^8.0.0"
   }
 }
