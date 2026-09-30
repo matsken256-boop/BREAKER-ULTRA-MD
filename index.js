@@ -64,8 +64,10 @@ app.get('/pair', checkPassword, async (req, res) => {
     if (!sock.authState.creds.registered) {
       await delay(2000);
       let code = await sock.requestPairingCode(num);
-      code = code.match(/.{1,4}/g).join('-') || code;
-      res.send(`<html><body style="background:#0f172a;color:white;text-align:center;padding:50px;font-family:Arial"><h2>Your Code: ${code}</h2><p>Enter in WhatsApp within 15 seconds! Linked Device -> Link with phone number</p></body></html>`);
+code = code.match(/.{1,4}/g).join('-') || code
+console.log("CODE " + code + " KEEP ALIVE 120s");
+setTimeout(()=>{try{sock.end()}catch(e){}},120000);
+res.send('<html><body style="background:#0f172a;color:white;text-align:center;font-family:Arial;padding:50px"><h2>CODE: '+code+'</h2><p>Enter this in WhatsApp NOW! Valid 2 mins</p><p>Keep this page open - logging in...</p></body></html>');
     } else {
       res.send('Already paired!');
     }
