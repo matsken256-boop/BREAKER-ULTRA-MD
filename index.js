@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
@@ -6,10 +6,14 @@ const express = require('express');
 const os = require('os');
 const settings = require('./settings');
 
+const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
 const app = express();
 const PORT = process.env.PORT || process.env.SERVER_PORT || settings.PORT || 3000;
 const HOST = '0.0.0.0';
 app.use(express.json());
+
+let pairingSocks = {};
 
 function checkPassword(req, res, next) {
   const inputPass = req.query.password || req.headers['x-master-password'];
@@ -25,8 +29,6 @@ function checkPassword(req, res, next) {
 async function getPublicIP() {
   try {
     if (process.env.SERVER_IP) return process.env.SERVER_IP;
-    if (process.env.PUBLIC_IP) return process.env.PUBLIC_IP;
-    if (process.env.ALLOC_IP) return process.env.ALLOC_IP;
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
       for (const net of nets[name]) {
@@ -43,15 +45,19 @@ app.get('/', checkPassword, async (req, res) => {
   const host = req.get('host');
   const protocol = req.protocol;
   const fulllink = `${protocol}://${host}`;
-  res.send(`<html><head><title>BREAKER-ULTRA MD</title><meta name="viewport" content="width=device-width"></head><style>body{font-family:Arial;background:#0f172a;color:white;text-align:center}.box{background:#1e293b;padding:25px;border-radius:15px;max-width:400px;margin:50px auto}.link{background:black;padding:12px;border-radius:8px;margin:15px 0;word-break:all}input{padding:12px;width:80%;border-radius:8px;border:none;margin:10px}button{padding:12px 25px;background:#25D366;color:white;border:none;border-radius:8px}</style><body><div class="box"><h2>⚡ BREAKER-ULTRA MD ⚡</h2><p>Web Login Active</p><div class="link">${fulllink}</div><p style="font-size:11px;opacity:0.6">Auto-detected link - works on any deployment</p><form action="/pair" method="get"><input type="hidden" name="password" value="${req.query.password}"><input type="text" name="number" placeholder="2567XXXXXXX"><br><button type="submit">Get Pair Code</button></form></div></body></html>`);
+  res.send(`<html><head><title>BREAKER-ULTRA MD</title><meta name="viewport" content="width=device-width"></head><style>body{font-family:Arial;background:#0f172a;color:white;text-align:center}.box{background:#1e293b;padding:25px;border-radius:15px;max-width:400px;margin:50px auto}.link{background:black;padding:12px;border-radius:8px;margin:15px 0;word-break:break-all}input{padding:12px;width:80%;border-radius:8px;border:none;margin:10px}button{padding:12px 25px;background:#25D366;color:white;border:none;border-radius:8px}</style><body><div class="box"><h2>⚡ BREAKER-ULTRA MD ⚡</h2><p>Web Login Active</p><div class="link">${fulllink}</div><p style="font-size:11px;opacity:0.6">Auto-detected link</p><form action="/pair" method="get"><input type="hidden" name="password" value="${req.query.password}"><input type="text" name="number" placeholder="2567XXXXXXX"><br><button type="submit">Get Pair Code</button></form></div></body></html>`);
 });
 
 app.get('/pair', checkPassword, async (req, res) => {
-  let num = req.query.number?.replace(/[^0-9]/g, '');
+  let num = req.query.number? req.query.number.replace(/[^0-9]/g, '') : '';
   if (!num) return res.send('Add?number=2567XXXXXX');
   const sessionPath = path.join(__dirname, 'sessions', num);
-  if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
+  if (fs.existsSync(sessionPath)) {
+    fs.rmSync(sessionPath, { recursive: true, force: true });
+  }
+  fs.mkdirSync(sessionPath, { recursive: true });
   try {
+    if (pairingSocks[num]) { try { pairingSocks[num].end(); } catch {} }
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
     const sock = makeWASocket({
@@ -60,35 +66,33 @@ app.get('/pair', checkPassword, async (req, res) => {
       printQRInTerminal: false,
       browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
+    pairingSocks[num] = sock;
     sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('connection.update', (u) => {
+      if (u.connection === 'open') {
+        console.log('PAIRED SUCCESS: ' + num);
+        delete pairingSocks[num];
+      }
+    });
+    await delay(3000);
     if (!sock.authState.creds.registered) {
-      await delay(2000);
       let code = await sock.requestPairingCode(num);
-code = code.match(/.{1,4}/g).join('-') || code
-console.log("CODE " + code + " KEEP ALIVE 120s");
-setTimeout(()=>{try{sock.end()}catch(e){}},120000);
-res.send('<html><body style="background:#0f172a;color:white;text-align:center;font-family:Arial;padding:50px"><h2>CODE: '+code+'</h2><p>Enter this in WhatsApp NOW! Valid 2 mins</p><p>Keep this page open - logging in...</p></body></html>');
+      code = code.match(/.{1,4}/g).join('-') || code;
+      res.send(`<html><body style="background:#0f172a;color:white;text-align:center;padding:50px;font-family:Arial"><h2>Your Code: ${code}</h2><p>Enter in WhatsApp within 15 seconds!</p><h1>${code}</h1></body></html>`);
+      setTimeout(() => { try { sock.end(); } catch {} delete pairingSocks[num]; }, 90000);
     } else {
-      res.send('Already paired!');
+      res.send('Already paired! Restart server.');
     }
   } catch (e) {
+    console.log(e);
     res.send('Error: ' + e.message);
   }
-});
-
-app.listen(PORT, HOST, async () => {
-  const ip = await getPublicIP();
-  const displayIp = ip || 'YOUR-SERVER-IP';
-  console.log(`Loaded ${global.plugins?.length || 3} plugins`);
-  console.log(`Server on ${PORT}`);
-  console.log(`⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
-  console.log(`Web Link: http://${displayIp}:${PORT}`);
-  console.log(`Also open via your Katabump allocation link - Auto-detected!`);
 });
 
 const sessionsDir = path.join(__dirname, 'sessions');
 const pluginsDir = path.join(__dirname, 'plugins');
 global.plugins = [];
+
 function loadPlugins() {
   global.plugins = [];
   if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
@@ -106,7 +110,12 @@ loadPlugins();
 async function startBot(sessionName) {
   const sessionPath = path.join(sessionsDir, sessionName);
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-  const sock = makeWASocket({ auth: state, logger: pino({ level: 'silent' }), browser: ["Ubuntu", "Chrome", "20.0.04"] });
+  const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+  const sock = makeWASocket({
+    auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })) },
+    logger: pino({ level: 'silent' }),
+    browser: ["Ubuntu", "Chrome", "20.0.04"]
+  });
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
     if (u.connection === 'close') {
@@ -128,8 +137,8 @@ async function startBot(sessionName) {
     m.chat = m.key.remoteJid;
     for (let plugin of global.plugins) {
       let names = [];
-      if (plugin.name) names = [plugin.name.toLowerCase(),...(plugin.alias||[])];
-      else if (plugin.command) names = plugin.command.map(c=>c.toLowerCase());
+      if (plugin.name) names = [plugin.name.toLowerCase(),...(plugin.alias || [])];
+      else if (plugin.command) names = plugin.command.map(c => c.toLowerCase());
       if (names.includes(cmdName)) {
         try {
           if (plugin.run) await plugin.run(sock, m, { args });
@@ -151,4 +160,10 @@ async function loadAllSessions() {
     }
   }
 }
-loadAllSessions();
+
+app.listen(PORT, HOST, async () => {
+  const ip = await getPublicIP();
+  console.log(`Server on ${PORT}`);
+  console.log(`Web Link: http://${ip || 'SERVER-IP'}:${PORT}`);
+  await loadAllSessions();
+});
