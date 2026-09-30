@@ -4,21 +4,36 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const os = require('os');
+const settings = require('./settings'); // <-- NOW IT READS YOUR SETTINGS.JS
 
 const app = express();
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3000;
 const HOST = '0.0.0.0';
 app.use(express.json());
 
-// AUTO DETECT IP - Works on any host
+// PASSWORD CHECK MIDDLEWARE - THIS LOCKS YOUR PORTAL
+function checkPassword(req, res, next) {
+  const inputPass = req.query.password || req.headers['x-master-password'];
+  if (!inputPass) {
+    return res.send(`<html><body style="background:#0f172a;color:white;text-align:center;font-family:Arial;padding:50px">
+      <h2>🔒 BREAKER-ULTRA MD Locked</h2>
+      <p>Enter Master Password</p>
+      <form action="/" method="get">
+      <input type="password" name="password" placeholder="Master Password" style="padding:12px;width:80%;border-radius:8px;border:none;margin:10px"/>
+      <br><button type="submit" style="padding:12px 25px;background:#25D366;color:white;border:none;border-radius:8px">Unlock</button>
+      </form></body></html>`);
+  }
+  if (inputPass!== settings.MASTER_PASSWORD) {
+    return res.send('❌ Wrong Master Password! Check settings.js');
+  }
+  next();
+}
+
 async function getPublicIP() {
   try {
-    // Try to get from environment (Katabump, Pterodactyl)
     if (process.env.SERVER_IP) return process.env.SERVER_IP;
     if (process.env.PUBLIC_IP) return process.env.PUBLIC_IP;
     if (process.env.ALLOC_IP) return process.env.ALLOC_IP;
-
-    // Try network interfaces
     const nets = os.networkInterfaces();
     for (const name of Object.keys(nets)) {
       for (const net of nets[name]) {
@@ -28,46 +43,33 @@ async function getPublicIP() {
       }
     }
     return null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-app.get('/', async (req, res) => {
-  // Best method: use the host from the request itself - 100% auto
-  const host = req.get('host'); // This auto-detects the real public link
+app.get('/', checkPassword, async (req, res) => {
+  const host = req.get('host');
   const protocol = req.protocol;
-  const fullLink = `${protocol}://${host}`;
-
+  const fulllink = `${protocol}://${host}`;
   res.send(`
-    <html><head><title>BREAKER-ULTRA MD</title><meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>body{font-family:Arial;background:#0f172a;color:white;text-align:center;padding:30px}
-  .box{background:#1e293b;padding:25px;border-radius:15px;max-width:400px;margin:auto}
-  .link{background:black;padding:12px;border-radius:8px;margin:15px 0;word-break:break-all;color:#25D366}
-   input{padding:12px;width:80%;border-radius:8px;border:none;margin:10px}
-   button{padding:12px 25px;background:#25D366;color:white;border:none;border-radius:8px;font-weight:bold}</style></head>
-    <body><div class="box">
-    <h2>⚡ BREAKER-ULTRA MD ⚡</h2>
-    <p>Web Login Active</p>
-    <div class="link">${fullLink}</div>
+    <html><head><title>BREAKER-ULTRA MD</title><meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>body{font-family:Arial;background:#0f172a;color:white;text-align:center}.box{background:#1e293b;padding:25px;border-radius:15px;max-width:400px;margin:15px auto}.link{background:black;padding:12px;border-radius:8px;margin:15px 0;word-break:break-all}input{padding:12px;width:80%;border-radius:8px;border:none;margin:10px}button{padding:12px 25px;background:#25D366;color:white;border:none;border-radius:8px}</style>
+    <body><div class="box"><h2>⚡ BREAKER-ULTRA MD ⚡</h2><p>Web Login Active</p><div class="link">${fulllink}</div>
     <p style="font-size:11px;opacity:0.6">Auto-detected link - works on any deployment</p>
-    <form action="/pair" method="get"><input name="number" placeholder="2567XXXXXXXX" required><br><button>Get Pairing Code</button></form>
+    <form action="/pair" method="get"><input type="hidden" name="password" value="${req.query.password}"><input name="number" placeholder="2567XXXXXXX"><br><button type="submit">Get Pair Code</button></form>
     </div></body></html>
   `);
 });
-app.get('/pair', async (req, res) => {
+
+app.get('/pair', checkPassword, async (req, res) => {
   let num = req.query.number?.replace(/[^0-9]/g, '');
-  if (!num) return res.send('Add?number=2567XXXXXX');
+  if (!num) return res.send('Add?number=2567XXXXXXX');
   const sessionPath = path.join(__dirname, 'sessions', num);
   if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     const { makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
     const sock = makeWASocket({
-      auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
-      },
+      auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })) },
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
       browser: ["Ubuntu", "Chrome", "20.0.04"]
@@ -76,8 +78,8 @@ app.get('/pair', async (req, res) => {
     if (!sock.authState.creds.registered) {
       await new Promise(r => setTimeout(r, 2000));
       let code = await sock.requestPairingCode(num);
-      code = code?.match(/.{1,4}/g)?.join('-') || code;
-      res.send(`<html><body style='background:#0f172a;color:white;text-align:center'>CODE: ${code}<br>Enter this in WhatsApp > Linked Devices</body></html>`);
+      code = code.match(/.{1,4}/g).join('-') || code;
+      res.send(`<html><body style='background:#0f172a;color:white;text-align:center;padding:50px;font-family:Arial'><h2>Your Code: ${code}</h2><p>Enter in WhatsApp within 15 seconds! Linked Devices > Link with phone number</p></body></html>`);
     } else {
       res.send('Already paired!');
     }
@@ -85,24 +87,23 @@ app.get('/pair', async (req, res) => {
     res.send('Error: ' + e.message);
   }
 });
+
 app.listen(PORT, HOST, async () => {
   const ip = await getPublicIP();
   const displayIp = ip || 'YOUR-SERVER-IP';
-
-  console.log(`✅Loaded ${global.plugins? global.plugins.length : 3} plugins`);
+  console.log(`✅ Loaded ${global.plugins? global.plugins.length : 3} plugins`);
   console.log(`Server on ${PORT}`);
-  console.log(`⚡ BREAKER-ULTRA MD WEB LOGIN ⚡`);
-  console.log(`🔗Web Link: http://${displayIp}:${PORT}`);
-  console.log(`🔗Also open via your Katabump allocation link - Auto-detected!`);
+  console.log(`🔐 BREAKER-ULTRA MD WEB LOGIN 🔐`);
+  console.log(`Web Link: http://${displayIp}:${PORT}`);
+  console.log(`Also open via your Katabump allocation link - Auto-detected!`);
 });
 
 const sessionsDir = path.join(__dirname, 'sessions');
 const pluginsDir = path.join(__dirname, 'plugins');
 global.plugins = [];
-
 function loadPlugins() {
   global.plugins = [];
-  if (!fs.existsSync(pluginsDir)) { fs.mkdirSync(pluginsDir, { recursive: true }); return; }
+  if (!fs.existsSync(pluginsDir)) { fs.mkdirSync(pluginsDir, { recursive: true }); }
   const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
   for (let file of files) {
     try {
@@ -117,7 +118,7 @@ loadPlugins();
 async function startBot(sessionName) {
   const sessionPath = path.join(sessionsDir, sessionName);
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-  const sock = makeWASocket({ auth: state, logger: pino({ level: 'silent' }), browser: ['BREAKER-ULTRA', 'Chrome', '1.0.0'] });
+  const sock = makeWASocket({ auth: state, logger: pino({ level: 'silent' }), browser: ["Ubuntu", "Chrome", "20.0.04"] });
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
     if (u.connection === 'close') {
@@ -129,8 +130,9 @@ async function startBot(sessionName) {
   });
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
-    if (!m.message || m.key.fromMe) return;
-    const text = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || '';
+    if (!m.message) return;
+    if (m.key.fromMe) return;
+    const text = m.message.conversation || m.message.extendedTextMessage?.text || '';
     if (!text.startsWith('.')) return;
     const args = text.slice(1).trim().split(/ +/);
     const cmdName = args.shift().toLowerCase();
