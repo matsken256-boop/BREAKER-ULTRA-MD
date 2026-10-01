@@ -1,11 +1,14 @@
 {
   "name": "breaker-ultra-md",
   "version": "2.7.0",
-  "description": "Official Multi-Device WhatsApp Bot",
-  "main": "app.js",
+  "description": "Official Multi-Device WhatsApp Bot - UG Challenger Edition",
+  "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node app.js"
+    "start": "node start.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.16",
