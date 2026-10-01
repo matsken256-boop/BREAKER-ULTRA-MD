@@ -1,0 +1,12 @@
+{
+  "name": "BREAKER-ULTRA-MD",
+  "description": "Multi-session WhatsApp bot by Matsken",
+  "stack": "heroku-22",
+  "env": {
+    "MASTER_PASSWORD": { "description": "Web password", "required": true },
+    "GITHUB_USERNAME": { "description": "Your github username", "required": true },
+    "MONGODB_URL": { "description": "MongoDB URL", "required": false },
+    "DATABASE_URL": { "description": "Postgres URL", "required": false },
+    "PORT": { "description": "Port - don't change on Heroku", "required": false }
+  }
+}
