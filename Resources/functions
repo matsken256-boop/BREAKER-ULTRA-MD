@@ -1,1 +1,0 @@
-module.exports={runtime:(s)=>{s=Number(s);let d=Math.floor(s/86400);let h=Math.floor(s%86400/3600);let m=Math.floor(s%3600/60);let sec=Math.floor(s%60);return `${d}d ${h}h ${m}m ${sec}s`}};
