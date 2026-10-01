@@ -1,12 +1,57 @@
 {
   "name": "BREAKER-ULTRA-MD",
-  "description": "Multi-session WhatsApp bot by Matsken",
+  "description": "BREAKER ULTRA MD v2.7.0 BOX LOCKED by Matsken - Multi-Session | Host Anywhere",
   "stack": "heroku-22",
+  "keywords": ["whatsapp", "bot", "multi-device", "baileys", "breaker", "matsken", "v2.7.0"],
+  "website": "https://github.com/matsken256-boop/breaker-ultra-md",
+  "repository": "https://github.com/matsken256-boop/breaker-ultra-md",
+  "logo": "https://i.ibb.co/placeholder.png",
+  "success_url": "/",
   "env": {
-    "MASTER_PASSWORD": { "description": "Web password", "required": true },
-    "GITHUB_USERNAME": { "description": "Your github username", "required": true },
-    "MONGODB_URL": { "description": "MongoDB URL", "required": false },
-    "DATABASE_URL": { "description": "Postgres URL", "required": false },
-    "PORT": { "description": "Port - don't change on Heroku", "required": false }
-  }
+    "MASTER_PASSWORD": {
+      "description": "Login password for web pairing",
+      "value": "Breaker",
+      "required": true
+    },
+    "BOT_NAME": {
+      "description": "Bot Name",
+      "value": "BREAKER-ULTRA-MD",
+      "required": false
+    },
+    "SESSION_ID": {
+      "description": "Optional - Paste session ID if you have one, else use /code pairing",
+      "required": false
+    },
+    "PREFIX": {
+      "description": "Bot Prefix - default (.)",
+      "value": ".",
+      "required": false
+    },
+    "MODE": {
+      "description": "public | private | self",
+      "value": "public",
+      "required": false
+    },
+    "OWNER_NUMBER": {
+      "description": "Your WhatsApp Number 2567XXX",
+      "value": "256769724124",
+      "required": false
+    },
+    "MONGODB_URL": {
+      "description": "MongoDB URL - For Session Saving (Optional but recommended)",
+      "required": false
+    },
+    "DATABASE_URL": {
+      "description": "Postgres URL - Optional",
+      "required": false
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest"
+    }
+  ]
 }
