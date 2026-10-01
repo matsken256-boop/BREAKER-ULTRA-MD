@@ -25,6 +25,7 @@ module.exports = {
 
 ┌─⊷ ◇ AI MENU ◇
 │ ➳ analyse
+│ ➳ chatbot
 │ ➳ deepseek
 │ ➳ explaincode
 │ ➳ gemini
