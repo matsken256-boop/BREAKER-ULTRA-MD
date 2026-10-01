@@ -17,8 +17,6 @@ async function startBot() {
     });
 
     sock.ev.on("creds.update", saveCreds);
-
-    // Load plugins from resources/plugins
     const pluginsPath = path.join(__dirname, "resources", "plugins");
     const plugins = new Map();
 
