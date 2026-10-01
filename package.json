@@ -1,7 +1,8 @@
 {
   "name": "breaker-ultra-md",
   "version": "2.7.0",
-  "main": "app.js",
+  "description": "BREAKER ULTRA MD v2.7.0 BOX LOCKED - Developer Matsken",
+  "main": "index.js",
   "scripts": {
     "start": "node start.js"
   },
@@ -14,6 +15,9 @@
     "express": "^4.18.2",
     "node-cache": "^5.1.2",
     "pino": "^8.16.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "file-type": "^16.5.4",
+    "moment-timezone": "^0.5.45",
+    "fs-extra": "^11.2.0"
   }
 }
