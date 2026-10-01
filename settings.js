@@ -1,45 +1,70 @@
-/**
- * Change the MASTER_PASSWORD to something secure
- * This password is required for:
- * - Pairing new sessions
- * - Accessing paired sessions via web
- */
+/*
+   ╔════════════════════════════════════╗
+   ║  BREAKER-ULTRA-MD - MULTI-SESSION ║
+   ║  Developer: Matsken      ║
+   ╚════════════════════════════════════╝
+*/
 
 module.exports = {
-    // Web dashboard password - required to pair
-    MASTER_PASSWORD: process.env.MASTER_PASSWORD || "BREAKER-MD-256",
 
-    // Database - supports both Postgres and Mongo
-    // Katabump will inject DATABASE_URL automatically
+    //━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  KATABUMP CORE - DO NOT TOUCH
+    //━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    MASTER_PASSWORD: process.env.MASTER_PASSWORD || "Breaker",
     DATABASE_URL: process.env.DATABASE_URL || "",
-
-    // Also add Mongo URL support for your actual bot
     MONGODB_URL: process.env.MONGODB_URL || process.env.DATABASE_URL || "",
+    
+    PORT: process.env.PORT || 3000,
+    GITHUB_USERNAME: process.env.GITHUB_USERNAME || "matsken256-boop",
 
-    // Session access code settings (don't change)
+    // Session Code Settings
     ACCESS_CODE_LENGTH: 6,
     ACCESS_CODE_EXPIRY: 5 * 60 * 1000,
 
-    // Server port (auto-set by hosting platform)
-    PORT: process.env.PORT || 3000,
+    //━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  MULTI-SESSION SYSTEM
+    //━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    MULTI_SESSION: {
+        enabled: true,
+        allowPairForOthers: true,  // 
+        maxSessions: 10,           // unlimited users
+        sessionFolder: "./auth",   // where sessions save
+        autoClearInactive: false
+    },
 
-    // Your Github username (must have forked repo)
-    GITHUB_USERNAME: process.env.GITHUB_USERNAME || "matsken256-boop",
-
-    // --- BREAKER-ULTRA-MD CUSTOM SETTINGS ---
+    //━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  BREAKER BOT SETTINGS
+    //━━━━━━━━━━━━━━━━━━━━━━━━━━━
     botName: "BREAKER-ULTRA-MD",
+    botVersion: "2.7.0",
     ownerName: "Matsken",
+    
+    // Main Owner - Bot creator
     ownerNumber: "256769724124",
+    ownerNumbers: ["256769724124"], //
+
+    // Bot Behaviour
     prefix: ".",
+    mode: "public", // public | private | self
+    autoReact: true,
+    autoRead: false,
+    autoStatusSeen: true,
+    autoBio: false,
+
+    // Media
     botLogo: "./logo.jpg",
     thumb: "./logo.jpg",
+    packName: "BREAKER-ULTRA-MD",
+    author: "Matsken",
 
+    // Messages
     mess: {
-        owner: "*Owner Only Command!*",
-        group: "*Group Only!*",
-        admin: "*Admin Only!*",
-        botAdmin: "*Make me admin first!*",
-        done: "✅ Done!",
-        wait: "⏳ Processing..."
+        owner: "*_Owner only! This is for my owner!_*",
+        group: "*_Group only!_*",
+        admin: "*_Admin only!_*",
+        botAdmin: "*_Make me admin first!_*",
+        done: "✅ *Done!*",
+        wait: "⏳ *BREAKER is processing...*",
+        sessionLimit: "*_Session limit reached!_*"
     }
 };
