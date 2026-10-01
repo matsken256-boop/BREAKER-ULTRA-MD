@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const SESSION_DIR = path.join(__dirname, settings.MULTI || './session');
+const SESSION_DIR = path.join(__dirname, settings.MULTI_SESSION.sessionFolder || './auth');
 const CREDS_PATH = path.join(SESSION_DIR, 'creds.json');
 const isPaired = () => fs.existsSync(CREDS_PATH);
 
@@ -19,14 +19,13 @@ app.get('/', (req, res) => {
 });
 
 app.get('/code', async (req, res) => {
-  if (isPaired()) return res.status(403).json({ error: "LOCKED - Session active" });
+  if (isPaired()) return res.status(403).json({ error: settings.mess.sessionLimit });
   let number = (req.query.number || "").replace(/[^0-9]/g, "");
   if (!number) return res.status(400).json({ error: "Number required" });
-
   try {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version } = await fetchLatestBaileysVersion();
-    const sock = makeWASocket({ version, logger: pino({ level: "silent" }), auth: state, printQRInTerminal: false, browser: [settings.botName, "Chrome", "1.0.0"] });
+    const sock = makeWASocket({ version, logger: pino({ level: "silent" }), auth: state, browser: [settings.botName, "Chrome", settings.botVersion] });
     sock.ev.on("creds.update", saveCreds);
     await delay(1500);
     const code = await sock.requestPairingCode(number);
