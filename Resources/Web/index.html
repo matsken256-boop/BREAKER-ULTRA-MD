@@ -1,1 +1,44 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>BREAKER-ULTRA-MD</title><style>body{background:#000;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif}.box{background:#111;padding:20px;border-radius:12px;width:90%;max-width:350px;text-align:center;border:1px solid #222}input,button{width:95%;padding:12px;margin:8px 0;border-radius:8px;border:none}button{background:#00ff88;font-weight:bold}code{color:#00ff88;font-size:22px;letter-spacing:3px}</style></head><body><div class="box"><h2>⚡ BREAKER-ULTRA-MD</h2><input id="pass" type="password" placeholder="MASTER_PASSWORD"><input id="num" placeholder="256769724124"><button onclick="getCode()">Get Code</button><h3 id="code"></h3><p id="msg"></p><script>async function getCode(){let n=document.getElementById('num').value.replace(/[^0-9]/g,'');let p=document.getElementById('pass').value;msg.innerText='Loading...';let r=await fetch('/pair?number='+n+'&password='+p);let d=await r.json();if(d.code){code.innerText=d.code;msg.innerText='Linked Devices > Link with number'}else msg.innerText=d.error}</script></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BREAKER ULTRA MD - v2.7.0</title>
+<style>
+body { background:#0a0a0a; color:#fff; font-family: monospace; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+.box { border:2px solid #00ff88; padding:30px; border-radius:15px; background:#111; max-width:400px; width:90%; text-align:center; box-shadow:0 0 20px #00ff8855; }
+h1 { color:#00ff88; margin-bottom:5px; }
+input { width:90%; padding:12px; margin:15px 0; border-radius:8px; border:1px solid #00ff88; background:#000; color:#fff; }
+button { background:#00ff88; color:#000; border:none; padding:12px 25px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%; }
+.status { margin-top:15px; padding:10px; border:1px dashed #00ff88; border-radius:8px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="box">
+<h1>┌─⊷ ◇ BREAKER ◇</h1>
+<p>ULTRA MD v2.7.0</p>
+<p>🌟 100% Breaker Branded</p>
+<input type="text" id="number" placeholder="2567XXXXXXXX">
+<button onclick="pair()">GET PAIR CODE</button>
+<div class="status" id="status">
+│ System: Online<br>
+│ Bot: Breaker-Ultra<br>
+│ Version: 2.7.0 BOX
+</div>
+</div>
+<script>
+function pair(){
+  const num = document.getElementById('number').value;
+  const s = document.getElementById('status');
+  if(!num){ s.innerHTML='│ ❌ Enter number'; return; }
+  s.innerHTML=`┌─⊷ ◇ PAIRING ◇<br>│ Number: ${num}<br>│ Status: Connecting...<br>└─⊷`;
+  // Your pairing logic here
+  fetch(`/pair?number=${num}`).then(r=>r.json()).then(d=>{
+    s.innerHTML=`┌─⊷ ◇ CODE ◇<br>│ Code: ${d.code || 'Check WhatsApp'}<br>└─⊷`;
+  }).catch(()=>{
+    s.innerHTML=`┌─⊷ ◇ ERROR ◇<br>│ Pair server offline<br>│ Use /Resources/Socket<br>└─⊷`;
+  });
+}
+</script>
+</body>
+</html>
