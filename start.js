@@ -1,124 +1,89 @@
 /*
 ╔═══════════════════════════════════════╗
 ║ BREAKER-ULTRA-MD v2.7.0 BOX LOCKED ║
-║ Developer: Matsken ║
-║ ROOT: LOCKED | Resources: LOCKED ║
-║ HOST: Random (Anywhere) PRO ║
+║ ROOT: LOCKED | HOST: RANDOM ANYWHERE║
 ╚═══════════════════════════════════════╝
 */
-
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const pino = require('pino');
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, delay } = require('@whiskeysockets/baileys');
 const settings = require('./settings');
 
-const SESSION_DIR = path.join(__dirname, settings.SESSION_FOLDER || settings.MULTI_SESSION?.sessionFolder || './Sessions/breaker');
-const PLUGINS_PATH = path.join(__dirname, 'Resources', 'plugins');
+const app = express();
+const PORT = process.env.PORT || settings.PORT || 3000;
+const SESSION_DIR = path.join(__dirname, settings.SESSION_FOLDER || './Sessions/breaker');
 
-async function startBot(){
-  if(!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, {recursive:true});
+app.use(express.json());
+app.use(express.urlencoded({extended:true}));
 
-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-  const { version } = await fetchLatestBaileysVersion();
+// Web UI
+app.get('/', (req,res)=>{
+  const webFile = path.join(__dirname,'Resources','Web','index.html');
+  if(fs.existsSync(webFile)) return res.sendFile(webFile);
+  res.send(`
+  <html>
+  <head><title>BREAKER ULTRA MD</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>body{background:#0a0a0a;color:#00ff88;font-family:monospace;text-align:center;padding:30px}input{padding:12px;width:260px;border:1px solid #00ff88;background:#111;color:#fff}button{padding:12px 25px;background:#00ff88;border:0;font-weight:bold;cursor:pointer;margin-top:10px}</style>
+  </head>
+  <body>
+  <h1>┌─⊷ ◇ BREAKER ULTRA MD ◇ ⊶┐</h1>
+  <h2>v2.7.0 BOX LOCKED</h2>
+  <p>ROOT LOCKED | Resources LOCKED | ${fs.existsSync('./Resources/plugins')?fs.readdirSync('./Resources/plugins').length:0} Plugins</p>
+  <hr style="border-color:#00ff88">
+  <h3>GET PAIR CODE</h3>
+  <input id="num" placeholder="256769724124"><br>
+  <button onclick="getCode()">GET CODE</button>
+  <h2 id="code"></h2>
+  <script>
+  async function getCode(){
+    const n=document.getElementById('num').value;
+    if(!n) return alert('Enter number');
+    document.getElementById('code').innerText='Generating...';
+    const r=await fetch('/code?number='+n);
+    const d=await r.json();
+    if(d.code) document.getElementById('code').innerText='CODE: '+d.code;
+    else document.getElementById('code').innerText=d.error;
+  }
+  </script>
+  </body></html>`);
+});
 
+// Pair code API
+app.get('/code', async (req,res)=>{
+  let num = (req.query.number||'').replace(/[^0-9]/g,'');
+  if(!num) return res.status(400).json({error:'Use /code?number=256769724124'});
+  if(!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR,{recursive:true});
+  try{
+    const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+    const { version } = await fetchLatestBaileysVersion();
+    const sock = makeWASocket({version,logger:pino({level:'silent'}),auth:state,browser:[settings.BOT_NAME||'BREAKER-ULTRA-MD','Chrome','2.7.0']});
+    sock.ev.on('creds.update',saveCreds);
+    await delay(2000);
+    const code = await sock.requestPairingCode(num);
+    console.log(`\n[PAIR] ${num} => ${code}\n`);
+    res.json({code, success:true});
+  }catch(e){ res.status(500).json({error:e.message}); }
+});
+
+// AUTO DETECT ALLOCATION & WEB LOGIN LINK
+app.listen(PORT,'0.0.0.0', ()=>{
   console.log(`
-┌─⊷ ◇ BREAKER ULTRA MD ◇ ⊶┐
-│ Version: v${settings.BOT_VERSION || settings.botVersion || '2.7.0'} BOX
-│ Session: ${SESSION_DIR}
-│ Mode: ${settings.mode}
-└─⊷ INITIALIZING...
-  `);
-
-  const sock = makeWASocket({
-    version,
-    logger: pino({ level: 'silent' }),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
-    },
-    browser: [settings.BOT_NAME || settings.botName || 'BREAKER-ULTRA-MD', 'Chrome', settings.BOT_VERSION || settings.botVersion || '2.7.0'],
-    printQRInTerminal: false,
-    markOnlineOnConnect: true
-  });
-
-  sock.ev.on('creds.update', saveCreds);
-
-  // ── LOCKED PLUGINS LOADER (BOX) ──
-  const plugins = new Map();
-  const loadPlugins = () => {
-    if(!fs.existsSync(PLUGINS_PATH)) return;
-    const files = fs.readdirSync(PLUGINS_PATH).filter(x=>x.endsWith('.js'));
-    for(const f of files){
-      try{
-        delete require.cache[require.resolve(path.join(PLUGINS_PATH,f))];
-        const pl = require(path.join(PLUGINS_PATH,f));
-        if(pl.name){
-          plugins.set(pl.name.toLowerCase(), pl);
-          if(pl.alias) pl.alias.forEach(a=>plugins.set(a.toLowerCase(), pl));
-        }
-      }catch(e){ console.log(`[PLUGIN ERR] ${f}: ${e.message}`); }
-    }
-    console.log(`┌─⊷ ${plugins.size} Plugins Loaded - BOX LOCKED`);
-  };
-  loadPlugins();
-
-  // ── MESSAGE HANDLER - FIXED MODE LOGIC ──
-  sock.ev.on('messages.upsert', async ({messages})=>{
-    const m = messages[0];
-    if(!m.message || m.key.fromMe) return;
-
-    const body = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || "";
-    if(!body.startsWith(settings.prefix)) return;
-
-    const sender = (m.key.participant || m.key.remoteJid).replace(/[^0-9]/g,'');
-    const isOwner = settings.ownerNumbers.includes(sender) || sender === settings.ownerNumber;
-
-    // FIXED: public = everyone, private/self = owner only
-    if((settings.mode === 'private' || settings.mode === 'self') &&!isOwner) return;
-
-    const args = body.slice(settings.prefix.length).trim().split(/ +/);
-    const cmd = args.shift().toLowerCase();
-    const plugin = plugins.get(cmd);
-
-    if(plugin){
-      try{
-        await plugin.execute(sock, m, args, { settings, plugins });
-      }catch(e){
-        console.log(`[CMD ERR] ${cmd}: ${e.message}`);
-        await sock.sendMessage(m.key.remoteJid, { text: `┌─⊷ ◇ ERROR ◇ ⊶┐\n│ ${e.message}\n└─⊷` }, { quoted: m });
-      }
-    }
-  });
-
-  // ── CONNECTION - RANDOM HOST PRO ──
-  sock.ev.on('connection.update', async (u)=>{
-    const { connection, lastDisconnect } = u;
-    if(connection === 'close'){
-      const reason = lastDisconnect?.error?.output?.statusCode;
-      console.log(`Connection closed: ${reason}`);
-      if(reason!== DisconnectReason.loggedOut){
-        console.log('Reconnecting...');
-        setTimeout(startBot, 3000);
-      }else{
-        console.log('Logged out! Delete Sessions/breaker and re-pair.');
-      }
-    }
-    if(connection === 'open'){
-      console.log(`
-┌─⊷ ◇ BREAKER ULTRA MD ◇ ⊶┐
-│ ✅ ${settings.BOT_NAME || settings.botName} v${settings.BOT_VERSION || settings.botVersion} Connected
-│ 👑 Owner: ${settings.ownerNumber}
-│ 📁 Plugins: ${plugins.size} Locked
+┌─⊷ ◇ BREAKER ULTRA MD WEB ◇ ⊶┐
+│ v2.7.0 BOX LOCKED - PRO
+│ PORT: ${PORT} - Auto Detected
+│ HOST: 0.0.0.0 (Random Anywhere)
+├─⊷ WEB LOGIN LINKS ⊶┐
+│ Local: http://localhost:${PORT}
+│ Allocation: Your hosting panel link (Katabump/Render) will use PORT ${PORT}
+│ Pair Direct: /code?number=256769724124
+├─⊷ INSTRUCTIONS ⊶┐
+│ 1. Open your allocation link from panel
+│ 2. Add number to get pair code
+│ 3. Pair in WhatsApp
 └─⊷ READY TO DEPLOY ANYWHERE
-      `);
-    }
-  });
-}
-
-module.exports = startBot;
-
-// Auto-start if called directly
-if(require.main === module){
-  startBot();
-}
+  `);
+  try{ require('./start')(); }catch(e){ console.log('Bot start error:',e.message); }
+});
