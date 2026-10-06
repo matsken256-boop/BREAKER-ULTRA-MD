@@ -6,7 +6,7 @@ module.exports = async (conn, { update, start, close }) => {
     
     if (connection === 'connecting') {
         console.log(`\n╔══════════════════════════════╗
-║ ⚡ BREAKER XMD - CONNECTING  ║
+║ ⚡ BREAKER-ULTRA MD - CONNECTING  ║
 ║ Owner: ${config.ownerName}        
 ║ Prefix: [ ${config.prefix} ]              
 ║ Mode: ${config.mode}                  
@@ -15,7 +15,7 @@ module.exports = async (conn, { update, start, close }) => {
     }
 
     if (connection === 'open') {
-        console.log(`✅ BREAKER XMD CONNECTED`);
+        console.log(`✅ BREAKER-ULTRA MD CONNECTED`);
         console.log(`📱 Number: ${conn.user.id.split(':')[0]}`);
         console.log(`⏰ ${new Date().toLocaleString()}`);
         console.log(`🔗 https://t.me/breakerxmd_official\n`);
