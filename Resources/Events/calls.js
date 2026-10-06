@@ -1,30 +1,30 @@
-const config = require('../../settings');
+// BREAKER ULTRA MD - ANTICALL - PRO CLEAN
+module.exports = async (client, config) => {
+    client.ev.on('call', async (calls) => {
+        for (let call of calls) {
+            if (call.status!== 'offer') continue;
+            const from = call.from;
+            const anticall = global.db?.settings?.anticall || { decline: false, block: false };
+            if (!anticall.decline &&!anticall.block) continue;
 
-module.exports = async (conn, call) => {
-  try {
-    for (let c of call) {
-      if (c.status === 'offer') {
-        
-        console.log(`📵 Call rejected from: ${c.from}`);
+            try {
+                await client.rejectCall(call.id, from);
 
-        await conn.rejectCall(c.id, c.from);
+                if (anticall.block) {
+                    await client.updateBlockStatus(from, 'block');
+                }
 
-        const callerId = c.from;
-        await conn.sendMessage(callerId, {
-          text: `📵 *Calls Not Allowed!*
+                // Same reply for both - tags caller
+                const msg = `🚨 *CALL DETECTED!* 🚨\n\n@${from.split('@')[0]} Matsken©®, my owner\ncannot receive audio calls at the moment.\n\n⚠️ Your call has been declined.\nPlease avoid calling.`;
 
-❌ Do NOT call
-✅ Text only
+                await client.sendMessage(from, {
+                    text: msg,
+                    mentions: [from]
+                });
 
-> BREAKER ULTRA MD`
-        });
-
-        // 🚫 BLOCK OPTION
-        await conn.updateBlockStatus(callerId, "block");
-        console.log(`🚫 Blocked caller: ${c.from}`);
-      }
-    }
-  } catch (e) {
-    console.log('Error in calls.js:', e);
-  }
+            } catch (e) {
+                console.log(e);
+            }
+        }
+    });
 };
