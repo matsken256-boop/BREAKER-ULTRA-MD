@@ -1,16 +1,15 @@
-const { smsg } = require('./smsg');
+const { smsg } = require('../../Lib/myfunc');
 const config = require('../../settings');
 
-module.exports = async (conn, m) => {
+module.exports = async (conn, m, store) => {
     try {
         if (!m) return;
-        m = smsg(conn, m);
+        m = smsg(conn, m, store);
         if (!m.message) return;
 
         const from = m.key.remoteJid;
         const isGroup = from.endsWith('@g.us');
-        const sender = isGroup? m.key.participant : from;
-        const pushname = m.pushName || 'No Name';
+        const sender = isGroup ? m.key.participant : from;
 
         const body = m.mtype === 'conversation'? m.message.conversation :
                      m.mtype === 'extendedTextMessage'? m.message.extendedTextMessage.text :
@@ -19,18 +18,9 @@ module.exports = async (conn, m) => {
 
         if (!body) return;
 
-        const prefix = config.prefix;
-        const isCmd = body.startsWith(prefix);
-        if (!isCmd) return;
-
-        const args = body.slice(prefix.length).trim().split(/ +/);
-        const command = args.shift().toLowerCase();
-
-        const isOwner = config.ownerNumber.includes(sender.split('@')[0]) || m.key.fromMe;
-
-        // Load executor
+        // Call executor - this loads Plugins
         const executor = require('./executor');
-        await executor(conn, m, config);
+        await executor(conn, m, config, store);
 
     } catch (e) {
         console.log('Error in mains.js:', e);
