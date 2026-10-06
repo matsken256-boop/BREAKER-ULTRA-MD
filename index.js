@@ -62,5 +62,4 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`⚡ ${settings.BOT_NAME || 'BREAKER-ULTRA-MD'} WEB LOGIN ⚡`);
   console.log(`Web Link: http://${ip || 'YOUR-IP'}:${PORT}`);
   console.log('Also open via your Katabump allocation link - Auto-detected!');
-  require('./start')();
 });
