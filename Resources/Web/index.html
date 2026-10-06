@@ -1,183 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1a1a2e">
-  <meta name="description" content="Breaker XMD - PRO Control Panel">
-  <title>Breaker XMD - Control Panel</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BREAKER ULTRA-MD v2.7.0</title>
 <style>
-  :root {
-    --brand: #7c3aed;
-    --brand-dark: #6d28d9;
-    --brand-light: #8b5cf6;
-    --brand-faint: rgba(124,58,237,0.1);
-    --accent: #06b6d4;
-    --success: #10b981;
-    --error: #ef4444;
-    --warning: #f59e0b;
-    --info: #3b82f6;
-    --bg: #0f0f17;
-    --bg-card: #16161f;
-    --bg-elevated: #1e1e2b;
-    --bg-input: #12121a;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --border: rgba(255,255,255,0.07);
-    --border-focus: rgba(124,58,237,0.5);
-    --border-hover: rgba(255,255,255,0.12);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-    --shadow-lg: 0 10px 30px rgba(0,0,0,0.5);
-    --shadow-xl: 0 20px 50px rgba(0,0,0,0.6);
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
-    --radius-xl: 20px;
-    --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
-  }
-  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  html { scroll-behavior:smooth; }
-  body {
-    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
-    background: var(--bg);
-    min-height: 100vh;
-    color: var(--text-primary);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-  .ambient {
-    position: fixed; inset: 0; pointer-events: none;
-    background:
-      radial-gradient(ellipse 60% 40% at 20% 30%, rgba(124,58,237,0.15), transparent),
-      radial-gradient(ellipse 40% 30% at 80% 70%, rgba(6,182,212,0.1), transparent);
-  }
-  .hidden { display: none !important; }
-  .page {
-    position: relative; z-index: 1;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  .auth-shell {
-    width: 100%;
-    max-width: 440px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-    animation: fadeUp 0.5s cubic-bezier(0.4,0,0.2,1);
-  }
-  @keyframes fadeUp {
-    from { opacity:0; transform:translateY(20px); }
-    to { opacity:1; transform:translateY(0); }
-  }
-  .brand-header {
-    text-align: center;
-    padding: 40px 32px 28px;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(160deg, rgba(124,58,237,0.08), transparent);
-  }
-  .brand-logo {
-    width: 72px; height: 72px;
-    margin: 0 auto 16px;
-    background: linear-gradient(135deg, var(--brand), var(--accent));
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 30px;
-    box-shadow: 0 0 30px rgba(124,58,237,0.3);
-  }
-  .brand-name {
-    font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
-    background: linear-gradient(135deg, var(--brand-light), var(--accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .brand-sub { color: var(--text-muted); font-size: 13px; margin-top:4px; }
-  .nav-tabs { display: flex; background: var(--bg-elevated); border-bottom:1px solid var(--border); }
-  .nav-tab {
-    flex:1; padding:14px; text-align:center; font-size:14px; font-weight:600;
-    color: var(--text-muted); cursor:pointer; transition: var(--transition); position:relative; user-select:none;
-  }
-  .nav-tab:hover { color: var(--text-secondary); }
-  .nav-tab.active { color: var(--brand-light); background: rgba(124,58,237,0.06); }
-  .tab-content { padding:24px; }
-  .form-group { margin-bottom:16px; }
-  .form-label { display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; text-transform:uppercase; }
-  .form-input {
-    width:100%; padding:12px 14px; background:var(--bg-input); border:1px solid var(--border);
-    border-radius:var(--radius-md); color:var(--text-primary); font-size:14px; transition:var(--transition);
-  }
-  .form-input:focus { outline:none; border-color:var(--border-focus); }
-  .btn { width:100%; padding:12px; border:none; border-radius:var(--radius-md); font-weight:600; font-size:14px; cursor:pointer; transition:var(--transition); }
-  .btn-primary { background:var(--brand); color:white; }
-  .btn-primary:hover { background:var(--brand-dark); }
-  .btn-secondary { background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); }
-  .alert { padding:12px; border-radius:var(--radius-md); font-size:13px; margin-bottom:16px; }
-  .alert-error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:var(--error); }
-  .alert-success { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); color:var(--success); }
-  .code { font-size:28px; font-weight:800; text-align:center; letter-spacing:4px; padding:16px; background:var(--bg-input); border-radius:var(--radius-md); margin:12px 0; }
-  .loading { text-align:center; padding:20px; color:var(--text-muted); }
-  .spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--brand); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .session-card { display:flex; justify-content:space-between; align-items:center; padding:14px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:8px; }
-  .online { color:var(--success); font-size:12px; font-weight:700; }
-  .offline { color:var(--text-muted); font-size:12px; }
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+body{background:#0a0a14;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+.card{width:100%;max-width:380px;background:#151528;border-radius:20px;overflow:hidden;border:1px solid #2a2a4a;box-shadow:0 0 40px rgba(124,77,255,0.2)}
+.header{text-align:center;padding:30px 20px 20px}
+.logo{width:70px;height:70px;background:linear-gradient(135deg,#7c4dff,#00e5ff);border-radius:50%;display:flex;justify-content:center;align-items:center;margin:0 auto 15px;font-size:35px}
+h1{font-size:22px;background:linear-gradient(90deg,#7c4dff,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800}
+.sub{font-size:12px;color:#888;margin-top:5px}
+.tabs{display:flex;background:#0f0f22}
+.tab{flex:1;padding:15px;text-align:center;cursor:pointer;font-weight:600;color:#666;transition:0.3s;border-bottom:2px solid transparent}
+.tab.active{color:#7c4dff;border-bottom:2px solid #7c4dff;background:#151528}
+.content{padding:20px}
+.label{font-size:11px;color:#aaa;margin:15px 0 6px;display:block;letter-spacing:1px}
+input{width:100%;padding:14px;background:#0f0f22;border:1px solid #2a2a4a;border-radius:12px;color:#fff;outline:none;font-size:15px}
+input:focus{border-color:#7c4dff}
+.btn{width:100%;padding:14px;margin-top:20px;background:linear-gradient(90deg,#7c4dff,#6a3de8);border:none;border-radius:12px;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+.btn:active{transform:scale(0.98)}
+#codeBox{display:none;margin-top:20px;background:#0f0f22;border:1px dashed #7c4dff;padding:15px;border-radius:12px;text-align:center}
+.code{font-size:26px;letter-spacing:4px;font-weight:800;color:#00e5ff;margin:10px 0}
+.small{font-size:11px;color:#888}
 </style>
 </head>
 <body>
-<div class="ambient"></div>
-<div class="page">
-  <div class="auth-shell">
-    <div class="brand-header">
-      <div class="brand-logo">⚡</div>
-      <div class="brand-name">BREAKER XMD</div>
-      <div class="brand-sub">PRO Pair Panel • No Games</div>
-    </div>
-
-    <div id="authNav" class="nav-tabs">
-      <div id="loginTabBtn" class="nav-tab active">Login</div>
-      <div id="registerTabBtn" class="nav-tab">Pair New</div>
-    </div>
-
-    <!-- LOGIN -->
-    <div id="loginForm" class="tab-content">
-      <div id="loginAlert" class="hidden"></div>
-      <div class="form-group"><label class="form-label">Phone Number</label><input id="loginPhone" class="form-input" placeholder="255..."></div>
-      <div class="form-group" id="accessCodeGroup"><label class="form-label">Access Code</label><input id="accessCode" class="form-input" placeholder="Enter code"></div>
-      <button id="verifyCodeBtn" class="btn btn-primary">Verify & Login</button>
-      <div id="pairCodeBox" class="hidden"></div>
-    </div>
-
-    <!-- PAIR -->
-    <div id="registerForm" class="tab-content hidden">
-      <div id="registerAlert" class="hidden"></div>
-      <div class="form-group"><label class="form-label">Phone to Pair</label><input id="pairPhone" class="form-input" placeholder="255..."></div>
-      <div class="form-group"><label class="form-label">Master Password</label><input id="masterPassword" type="password" class="form-input" placeholder="••••••••"></div>
-      <button class="btn btn-primary">Request Pair Code</button>
-    </div>
-
-    <!-- SETTINGS - PRO ONLY, NO GAMES, NO LEADERBOARD -->
-    <div id="settingsDashboard" class="hidden">
-      <div class="tab-content">
-        <h3 style="margin-bottom:12px;">Your Sessions</h3>
-        <div id="sessionInfo" class="loading"><div class="spinner"></div><p>Loading...</p></div>
-        <div id="settingsContainer"></div>
-        <div style="margin-top:16px;"><button onclick="logout()" class="btn btn-secondary">Logout</button></div>
+<div class="card">
+  <div class="header">
+    <div class="logo">⚡</div>
+    <h1>BREAKER ULTRA-MD</h1>
+    <div class="sub">v2.7.0 BOX LOCKED • PRO Pair Panel</div>
+  </div>
+  <div class="tabs">
+    <div class="tab" id="tab-login" onclick="switchTab('login')">Login</div>
+    <div class="tab active" id="tab-pair" onclick="switchTab('pair')">Pair New</div>
+  </div>
+  <div class="content">
+    <!-- PAIR TAB -->
+    <div id="pair-sec">
+      <label class="label">PHONE NUMBER</label>
+      <input id="phone" placeholder="2567..." value="256790086834">
+      <button class="btn" onclick="getCode()">GET PAIR CODE</button>
+      <div id="codeBox">
+        <div class="small">YOUR PAIR CODE</div>
+        <div class="code" id="pairCode">---- ----</div>
+        <div class="small">WhatsApp > Linked Devices > Link with phone number</div>
+        <div class="small" style="margin-top:8px;color:#7c4dff" id="timer"></div>
       </div>
     </div>
-
+    <!-- LOGIN TAB -->
+    <div id="login-sec" style="display:none">
+      <label class="label">PHONE NUMBER</label>
+      <input id="phone2" placeholder="2567...">
+      <label class="label">ACCESS CODE</label>
+      <input id="access" placeholder="Enter code (Master: Breaker)">
+      <button class="btn" onclick="verifyLogin()">Verify & Login</button>
+      <div class="small" style="text-align:center;margin-top:12px">Master Password: <b style="color:#fff">Breaker</b></div>
+    </div>
   </div>
 </div>
-
-<div id="sessionOwnerName" class="hidden"></div>
-<script src="app.js"></script>
+<script>
+function switchTab(t){
+  document.getElementById('tab-login').classList.toggle('active', t==='login');
+  document.getElementById('tab-pair').classList.toggle('active', t==='pair');
+  document.getElementById('pair-sec').style.display = t==='pair' ? 'block' : 'none';
+  document.getElementById('login-sec').style.display = t==='login' ? 'block' : 'none';
+}
+async function getCode(){
+  const num = document.getElementById('phone').value.trim();
+  if(!num) return alert('Enter number');
+  document.getElementById('codeBox').style.display='block';
+  document.getElementById('pairCode').innerText='Loading...';
+  const endpoints = [`/code?number=${num}`, `/pair?number=${num}`, `/api/pair?number=${num}`, `/requestPairCode?number=${num}`];
+  for(let url of endpoints){
+    try{
+      const res = await fetch(url);
+      const data = await res.json().catch(()=>res.text());
+      const code = data.code || data.pairCode || data.pair_code || data;
+      if(code && String(code).length>=4){
+        document.getElementById('pairCode').innerText=code.code||code;
+        startTimer();
+        return;
+      }
+    }catch(e){}
+  }
+  document.getElementById('pairCode').innerText='Check Console Logs';
+}
+function startTimer(){
+  let s=300;
+  const el=document.getElementById('timer');
+  setInterval(()=>{s--; el.innerText=`Expires in ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; if(s<=0) el.innerText='Expired - Get New Code';},1000);
+}
+async function verifyLogin(){
+  const number=document.getElementById('phone2').value||document.getElementById('phone').value;
+  const code=document.getElementById('access').value;
+  if(code==='Breaker' || code==='BREAKER' || code.length>=4){
+    alert('Access Granted! Now go to Pair New to get code');
+    switchTab('pair');
+  } else {
+    alert('Invalid Access Code! Use Master: Breaker');
+  }
+}
+// default pair tab active
+switchTab('pair');
+</script>
 </body>
 </html>
