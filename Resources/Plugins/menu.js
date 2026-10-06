@@ -38,7 +38,7 @@ module.exports = {
 │ ➳ translate
 └─⊷
 
-🌟BREAKER-ULTRA-MD🌟 by MATSKEN`;
+🌟BREAKER-ULTRA-MD🌟 powered by MATSKEN`;
 
     await sock.sendMessage(m.key.remoteJid, { text }, { quoted: m });
   }
