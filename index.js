@@ -1,65 +1,59 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const pino = require('pino');
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, delay } = require('@whiskeysockets/baileys');
-const settings = require('./settings');
+const express = require('express')
+const fs = require('fs')
+const path = require('path')
 
-const app = express();
-const PORT = process.env.PORT || settings.PORT || 3000;
-const SESSION_DIR = path.join(__dirname, settings.SESSION_FOLDER || './Sessions/breaker');
+const app = express()
+app.use(express.json())
 
-app.use(express.json());
-app.use(express.static(__dirname));
-
-// Serve Web folder
-app.get('/', (req, res) => {
-  const webPath = path.join(__dirname, 'Resources', 'Web', 'index.html');
-  if (fs.existsSync(webPath)) return res.sendFile(webPath);
-  res.send(`
-  <body style="background:#0a0a0a;color:#00ff88;font-family:monospace;text-align:center;padding:50px">
-  <h1>┌─⊷ ◇ BREAKER ULTRA ◇ ⊶┐</h1>
-  <h2>v2.7.0 BOX LOCKED</h2>
-  <p>Resources Locked ✅ | Plugins Active ✅</p>
-  <a href="/code?number=2567XXXXXXXX" style="color:#00ff88">GET PAIR CODE</a>
-  </body>`);
-});
-
-app.get('/code', async (req, res) => {
-  let num = (req.query.number || '').replace(/[^0-9]/g,'');
-  if (!num) return res.status(400).json({ error: 'Number required: /code?number=2567XXX' });
-  
-  if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, {recursive:true});
-  
-  try {
-    const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-    const { version } = await fetchLatestBaileysVersion();
-    const sock = makeWASocket({ 
-      version, 
-      logger: pino({level:'silent'}), 
-      auth: state, 
-      browser: ['BREAKER-ULTRA-MD','Chrome','2.7.0'] 
-    });
-    sock.ev.on('creds.update', saveCreds);
-    await delay(1500);
-    const code = await sock.requestPairingCode(num);
-    res.json({ 
-      code,
-      message: `┌─⊷ ◇ BREAKER ULTRA MD ◇ ⊶┐\n│ Code: ${code}\n│ Bot: v2.7.0 BOX\n└─⊷`
-    });
-  } catch (e) { 
-    res.status(500).json({ error: e.message }); 
-  }
-});
-
-async function getIP(){
-  try{ const r = await fetch('https://api.ipify.org'); return (await r.text()).trim(); }catch{ return null; }
+const webPath = path.join(__dirname, 'Resources', 'Web')
+if (fs.existsSync(webPath)) {
+  app.use(express.static(webPath))
 }
 
-app.listen(PORT, '0.0.0.0', async () => {
-  const ip = await getIP();
-  console.log(`Server on ${PORT}`);
-  console.log(`⚡ ${settings.BOT_NAME || 'BREAKER-ULTRA-MD'} WEB LOGIN ⚡`);
-  console.log(`Web Link: http://${ip || 'YOUR-IP'}:${PORT}`);
-  console.log('Also open via your Katabump allocation link - Auto-detected!');
-});
+app.get('/', (req, res) => {
+  res.sendFile(path.join(webPath, 'index.html'))
+})
+
+app.get('/code', async (req, res) => {
+  const number = (req.query.number || '').replace(/[^0-9]/g, '')
+  if (!number) return res.json({ error: 'number required like 256790086834' })
+  
+  console.log('[BREAKER] Pair request for ' + number)
+  
+  const sessDir = path.join(__dirname, 'Sessions', 'breaker')
+  if (fs.existsSync(sessDir)) {
+    fs.rmSync(sessDir, { recursive: true, force: true })
+  }
+  fs.mkdirSync(sessDir, { recursive: true })
+  
+  global.pairCode = null
+  try {
+    delete require.cache[require.resolve('./start')]
+  } catch {}
+  
+  const startBot = require('./start')
+  await startBot(number)
+  
+  let count = 0
+  while (!global.pairCode && count < 20) {
+    await new Promise(r => setTimeout(r, 1000))
+    count++
+  }
+  
+  const fileCode = path.join(__dirname, 'pair_code.txt')
+  if (!global.pairCode && fs.existsSync(fileCode)) {
+    global.pairCode = fs.readFileSync(fileCode, 'utf8').trim()
+  }
+  
+  if (global.pairCode) {
+    console.log('[BREAKER] CODE: ' + global.pairCode)
+    return res.json({ code: global.pairCode, number: number })
+  } else {
+    return res.json({ error: 'Failed to generate code, check console' })
+  }
+})
+
+const PORT = process.env.PORT || 20158
+app.listen(PORT, () => {
+  console.log('BREAKER ULTRA-MD v2.7.0 BOX LOCKED running on ' + PORT)
+})
