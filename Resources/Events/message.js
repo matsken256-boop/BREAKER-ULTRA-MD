@@ -12,7 +12,6 @@ module.exports = async (conn, m) => {
     const sender = isGroup? m.key.participant : from;
     const pushname = m.pushName || 'No Name';
 
-    // Message content
     const body = m.mtype === 'conversation'? m.message.conversation :
                  m.mtype === 'extendedTextMessage'? m.message.extendedTextMessage.text :
                  m.mtype === 'imageMessage'? m.message.imageMessage.caption :
@@ -28,12 +27,7 @@ module.exports = async (conn, m) => {
     const command = args.shift().toLowerCase();
     const text = args.join(' ');
 
-    // Owner check
     const isOwner = config.ownerNumber.includes(sender.split('@')[0]) || m.key.fromMe;
-
-    // ============= PRO COMMANDS ONLY - NO GAMES ============= //
-
-    // No game commands like: tictactoe, chess, poker, hangman, etc.
 
     switch(command) {
       case 'ping':
@@ -45,7 +39,7 @@ module.exports = async (conn, m) => {
       case 'menu':
       case 'help': {
         let menu = `╔════════════════════╗
-║ ⚡ *BREAKER XMD PRO* ║
+║ ⚡ *BREAKER-ULTRA MD* ║
 ╠════════════════════╣
 ║ Owner: ${config.ownerName}
 ║ Prefix: ${prefix}
@@ -58,8 +52,6 @@ module.exports = async (conn, m) => {
 • ${prefix}menu - This menu
 • ${prefix}owner - Owner info
 • ${prefix}support - Support group
-
-_NO GAMES - PURE PERFORMANCE_
 `;
         await conn.sendMessage(from, { text: menu }, { quoted: m });
         break;
@@ -70,10 +62,7 @@ _NO GAMES - PURE PERFORMANCE_
         break;
       }
 
-      // ADD YOUR PRO COMMANDS HERE - NEVER ADD GAMES
-
       default: {
-        // Unknown command - ignore (PRO doesn't spam)
         break;
       }
     }
