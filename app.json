@@ -1,57 +1,37 @@
 {
-  "name": "BREAKER-ULTRA-MD",
-  "description": "BREAKER ULTRA MD v2.7.0 BOX LOCKED by Matsken - Multi-Session | Host Anywhere",
-  "stack": "heroku-22",
-  "keywords": ["whatsapp", "bot", "multi-device", "baileys", "breaker", "matsken", "v2.7.0"],
-  "website": "https://github.com/matsken256-boop/breaker-ultra-md",
+  "name": "breaker-ultra-md",
+  "description": "Breaker-Ultra MD; your powerful WhatsApp multi-session bot!",
+  "logo": "https://files.catbox.moe/ia1mgm.jpg",
+  "keywords": ["whatsapp", "bot", "breaker-ultra-md", "breaker", "matsken"],
   "repository": "https://github.com/matsken256-boop/breaker-ultra-md",
-  "logo": "https://i.ibb.co/placeholder.png",
-  "success_url": "/",
+  "stack": "heroku-24",
+  "addons": [
+    {
+      "plan": "heroku-postgresql"
+    }
+  ],
+  "scripts": {
+    "start": "node index.js"
+  },
   "env": {
     "MASTER_PASSWORD": {
-      "description": "Login password for web pairing",
-      "value": "Breaker",
+      "description": "Password for the web dashboard. Required to pair sessions and access bot settings.",
+      "value": "123456",
       "required": true
     },
-    "BOT_NAME": {
-      "description": "Bot Name",
-      "value": "BREAKER-ULTRA-MD",
-      "required": false
-    },
-    "SESSION_ID": {
-      "description": "Optional - Paste session ID if you have one, else use /code pairing",
-      "required": false
-    },
-    "PREFIX": {
-      "description": "Bot Prefix - default (.)",
-      "value": ".",
-      "required": false
-    },
-    "MODE": {
-      "description": "public | private | self",
-      "value": "public",
-      "required": false
-    },
-    "OWNER_NUMBER": {
-      "description": "Your WhatsApp Number 2567XXX",
-      "value": "256769724124",
-      "required": false
-    },
-    "MONGODB_URL": {
-      "description": "MongoDB URL - For Session Saving (Optional but recommended)",
-      "required": false
+    "GITHUB_USERNAME": {
+      "description": "Your GitHub username. You must have forked the breaker-ultra-md repository before using this bot.",
+      "value": "",
+      "required": true
     },
     "DATABASE_URL": {
-      "description": "Postgres URL - Optional",
+      "description": "PostgreSQL connection string. Automatically set by the Heroku Postgres add-on — do not change.",
       "required": false
     }
   },
   "buildpacks": [
     {
       "url": "heroku/nodejs"
-    },
-    {
-      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest"
     }
   ]
 }
