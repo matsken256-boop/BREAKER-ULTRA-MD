@@ -1,37 +1,23 @@
 {
   "name": "breaker-ultra-md",
   "description": "Breaker-Ultra MD; your powerful WhatsApp multi-session bot!",
-  "logo": "https://files.catbox.moe/ia1mgm.jpg",
-  "keywords": ["whatsapp", "bot", "breaker-ultra-md", "breaker", "matsken"],
+  "logo": "https://raw.githubusercontent.com/matsken256-boop/breaker-ultra-md/main/logo.jpg",
+  "keywords": ["whatsapp", "bot", "breaker-ultra-md"],
   "repository": "https://github.com/matsken256-boop/breaker-ultra-md",
   "stack": "heroku-24",
-  "addons": [
-    {
-      "plan": "heroku-postgresql"
-    }
-  ],
-  "scripts": {
-    "start": "node index.js"
-  },
+  "addons": [{"plan": "heroku-postgresql"}],
+  "scripts": {"start": "node index.js"},
   "env": {
     "MASTER_PASSWORD": {
-      "description": "Password for the web dashboard. Required to pair sessions and access bot settings.",
+      "description": "Password for the web dashboard.",
       "value": "123456",
       "required": true
     },
     "GITHUB_USERNAME": {
-      "description": "Your GitHub username. You must have forked the breaker-ultra-md repository before using this bot.",
+      "description": "Your GitHub username.",
       "value": "",
       "required": true
-    },
-    "DATABASE_URL": {
-      "description": "PostgreSQL connection string. Automatically set by the Heroku Postgres add-on — do not change.",
-      "required": false
     }
   },
-  "buildpacks": [
-    {
-      "url": "heroku/nodejs"
-    }
-  ]
+  "buildpacks": [{"url": "heroku/nodejs"}]
 }
