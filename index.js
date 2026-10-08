@@ -11,131 +11,95 @@ app.use(express.urlencoded({ extended: true }))
 const PORT = process.env.PORT || 3000
 const HOST = '0.0.0.0'
 const TIMEZONE = 'Africa/Kampala'
-const VERSION = '2.7.0'
 
 const ROOT = __dirname
 const SESSIONS_ROOT = path.join(ROOT, 'Sessions')
 const LOGS_ROOT = path.join(ROOT, 'Logs')
-const WEB_ROOT = path.join(ROOT, 'Resources', 'Web')
 
 if (!fs.existsSync(SESSIONS_ROOT)) fs.mkdirSync(SESSIONS_ROOT, { recursive: true })
 if (!fs.existsSync(LOGS_ROOT)) fs.mkdirSync(LOGS_ROOT, { recursive: true })
 
 const activeBots = new Map()
 
-function getTime() {
-  return moment().tz(TIMEZONE).format('YYYY-MM-DD HH:mm:ss')
-}
-
-function logger(sessionId, msg) {
-  const logFile = path.join(LOGS_ROOT, `${sessionId || 'manager'}.log`)
-  const line = `[${getTime()}] ${msg}\n`
+function getTime(){ return moment().tz(TIMEZONE).format('YYYY-MM-DD HH:mm:ss') }
+function logger(id,msg){
+  const f=path.join(LOGS_ROOT,`${id||'manager'}.log`)
+  const line=`[${getTime()}] ${msg}\n`
   console.log(line.trim())
-  try { fs.appendFileSync(logFile, line) } catch {}
+  try{fs.appendFileSync(f,line)}catch{}
 }
-
-function getSessions() {
-  if (!fs.existsSync(SESSIONS_ROOT)) return []
-  return fs.readdirSync(SESSIONS_ROOT).filter(f => {
-    const p = path.join(SESSIONS_ROOT, f)
-    return fs.statSync(p).isDirectory()
-  })
+function getSessions(){
+  if(!fs.existsSync(SESSIONS_ROOT)) return []
+  return fs.readdirSync(SESSIONS_ROOT).filter(f=>fs.statSync(path.join(SESSIONS_ROOT,f)).isDirectory())
 }
-
-function startSession(sessionId, phoneNumber = null) {
-  if (activeBots.has(sessionId)) {
-    try { activeBots.get(sessionId).kill() } catch {}
+function startSession(sessionId, phoneNumber){
+  if(activeBots.has(sessionId)){ try{activeBots.get(sessionId).kill()}catch{} activeBots.delete(sessionId) }
+  const sp=path.join(SESSIONS_ROOT,sessionId)
+  if(!fs.existsSync(sp)) fs.mkdirSync(sp,{recursive:true})
+  const args=[path.join(ROOT,'start.js')]
+  if(phoneNumber) args.push(phoneNumber,sessionId)
+  logger(sessionId,`Starting ${sessionId} ${phoneNumber||''}`)
+  const bot=spawn('node',args,{stdio:['inherit','pipe','pipe'],env:{...process.env,SESSION_ID:sessionId,PHONE_NUMBER:phoneNumber||''}})
+  activeBots.set(sessionId,bot)
+  bot.stdout.on('data',d=>logger(sessionId,d.toString().trim()))
+  bot.stderr.on('data',d=>logger(sessionId,`ERROR:${d.toString().trim()}`))
+  bot.on('close',code=>{
+    logger(sessionId,`Exited ${code}`)
     activeBots.delete(sessionId)
-  }
-
-  const sessionPath = path.join(SESSIONS_ROOT, sessionId)
-  if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true })
-
-  const args = [path.join(ROOT, 'start.js')]
-  if (phoneNumber) args.push(phoneNumber, sessionId)
-
-  logger(sessionId, `Starting session ${sessionId} ${phoneNumber? 'for ' + phoneNumber : ''}`)
-
-  const bot = spawn('node', args, {
-    stdio: ['inherit', 'pipe', 'pipe'],
-    env: {...process.env, SESSION_ID: sessionId, PHONE_NUMBER: phoneNumber || '' }
+    if(code!==0 && code!==1) setTimeout(()=>startSession(sessionId),3000)
   })
-
-  activeBots.set(sessionId, bot)
-
-  bot.stdout.on('data', d => logger(sessionId, d.toString().trim()))
-  bot.stderr.on('data', d => logger(sessionId, `ERROR: ${d.toString().trim()}`))
-
-  bot.on('close', code => {
-    logger(sessionId, `Session ${sessionId} exited with code ${code}`)
-    activeBots.delete(sessionId)
-    if (code!== 0 && code!== 1) {
-      logger(sessionId, `Auto-restarting ${sessionId} in 3s...`)
-      setTimeout(() => startSession(sessionId), 3000)
-    }
-  })
-
   return bot
 }
 
-// WEB DASHBOARD
-if (fs.existsSync(WEB_ROOT)) {
-  app.use(express.static(WEB_ROOT))
-}
-
-app.get('/', (req, res) => {
-  const sessions = getSessions()
-  const indexFile = path.join(WEB_ROOT, 'index.html')
-  if (fs.existsSync(indexFile)) return res.sendFile(indexFile)
-
-  res.send(`
-  <html><head><title>BREAKER-ULTRA MD v${VERSION}</title>
-  <style>body{background:#0a0a0a;color:#00ff88;font-family:monospace;padding:20px}
- .card{border:1px solid #00ff88;padding:15px;margin:10px 0;border-radius:8px}
-  a{color:#00ff88} input{padding:10px;background:#111;color:#0f8;border:1px solid #0f8}
-  button{padding:10px 20px;background:#00ff88;color:#000;border:0;cursor:pointer;font-weight:bold}
-  </style></head><body>
-  <h1>⚡ BREAKER-ULTRA MD v${VERSION}</h1>
-  <h3>MULTI-SESSION MANAGER - BOX UNLOCKED</h3>
-  <div class="card">
-    <h3>PAIR NEW BOT</h3>
-    <form action="/code" method="get">
-      <input name="number" placeholder="2567XXXXXXXX" required style="width:250px">
-      <input name="session" placeholder="session name (optional)" style="width:200px">
-      <button type="submit">GET PAIR CODE</button>
-    </form>
-    <p>Example: /code?number=2567XXXXXXXX&session=breaker1</p>
-  </div>
-  <div class="card">
-    <h3>ACTIVE SESSIONS (${sessions.length}) - ${activeBots.size} running</h3>
-    ${sessions.map(s => `<div>📁 ${s} - ${activeBots.has(s)? '🟢 ONLINE' : '🔴 OFFLINE'}
-    <a href="/start/${s}">[START]</a> <a href="/stop/${s}">[STOP]</a> <a href="/logs/${s}">[LOGS]</a> <a href="/delete/${s}">[DELETE]</a></div>`).join('') || 'No sessions yet'}
-  </div>
-  <div class="card"><a href="/sessions">/sessions JSON</a> | <a href="/status">/status</a> | Timezone: ${TIMEZONE}</div>
-  </body></html>
-  `)
+app.get('/',(req,res)=>{
+  const s=getSessions()
+  res.send(`<h1>BREAKER-ULTRA MD v2.7.0 ONLINE</h1><p>Sessions: ${s.length} Running: ${activeBots.size}</p>${s.map(x=>`<div>${x} ${activeBots.has(x)?'ONLINE':'OFFLINE'} <a href="/start/${x}">[START]</a> <a href="/stop/${x}">[STOP]</a> <a href="/logs/${x}">[LOGS]</a> <a href="/delete/${x}">[DEL]</a></div>`).join('')}<br><form action="/code">Number:<input name="number" placeholder="2567XXXX"><input name="session" placeholder="session"><button>GET CODE</button></form><br><a href="/status">status</a>`)
 })
 
-app.get('/code', async (req, res) => {
-  let number = (req.query.number || '').replace(/[^0-9]/g, '')
-  let sessionId = (req.query.session || '').replace(/[^a-zA-Z0-9_-]/g, '') || `breaker_${number.slice(-4)}_${Date.now().toString().slice(-4)}`
-
-  if (!number) return res.status(400).json({ error: 'Add?number=2567XXXXXXXX' })
-
-  const sessPath = path.join(SESSIONS_ROOT, sessionId)
-  if (fs.existsSync(sessPath)) {
-    try { fs.rmSync(sessPath, { recursive: true, force: true }) } catch {}
+app.get('/code',async(req,res)=>{
+  let number=(req.query.number||'').replace(/[^0-9]/g,'')
+  let sid=(req.query.session||'').replace(/[^a-zA-Z0-9_-]/g,'')||`breaker_${Date.now().toString().slice(-4)}`
+  if(!number) return res.status(400).json({error:'?number=2567XXXXXXXX'})
+  const sp=path.join(SESSIONS_ROOT,sid)
+  if(fs.existsSync(sp)) try{fs.rmSync(sp,{recursive:true,force:true})}catch{}
+  fs.mkdirSync(sp,{recursive:true})
+  global.pairCodes=global.pairCodes||{}
+  global.pairCodes[sid]=null
+  startSession(sid,number)
+  let tries=0
+  while(!global.pairCodes[sid] && tries<25){
+    const cf=path.join(ROOT,`pair_${sid}.txt`)
+    if(fs.existsSync(cf)){
+      global.pairCodes[sid]=fs.readFileSync(cf,'utf8').trim()
+      try{fs.unlinkSync(cf)}catch{}
+      break
+    }
+    await new Promise(r=>setTimeout(r,1000))
+    tries++
   }
-  fs.mkdirSync(sessPath, { recursive: true })
+  const code=global.pairCodes[sid]
+  if(code) return res.json({success:true,session:sid,number,code})
+  return res.json({success:false,error:'Failed, check /logs/'+sid,session:sid})
+})
 
-  global.pairCodes = global.pairCodes || {}
-  global.pairCodes[sessionId] = null
+app.get('/sessions',(req,res)=>{res.json({total:getSessions().length,running:activeBots.size})})
+app.get('/status',(req,res)=>res.json({bot:'BREAKER-ULTRA MD v2.7.0',total:getSessions().length,running:activeBots.size,uptime:process.uptime()}))
+app.get('/start/:id',(req,res)=>{startSession(req.params.id);res.redirect('/')})
+app.get('/stop/:id',(req,res)=>{
+  const b=activeBots.get(req.params.id)
+  if(b){b.kill();activeBots.delete(req.params.id);logger(req.params.id,'Stopped by user')}
+  res.redirect('/')
+})
+app.get('/logs/:id',(req,res)=>{
+  const f=path.join(LOGS_ROOT,`${req.params.id}.log`)
+  if(!fs.existsSync(f)) return res.send('No logs')
+  res.type('text/plain').send(fs.readFileSync(f,'utf8'))
+})
+app.get('/delete/:id',(req,res)=>{
+  const b=activeBots.get(req.params.id)
+  if(b){try{b.kill()}catch{} activeBots.delete(req.params.id)}
+  try{fs.rmSync(path.join(SESSIONS_ROOT,req.params.id),{recursive:true,force:true})}catch{}
+  res.redirect('/')
+})
 
-  logger(sessionId, `Pair request for ${number} session ${sessionId}`)
-  startSession(sessionId, number)
-
-  let tries = 0
-  while (!global.pairCodes[sessionId] && tries < 25) {
-    const codeFile = path.join(ROOT, `pair_${sessionId}.txt`)
-    if (fs.existsSync(codeFile)) {
-      global.pairCodes[sessionId] = fs.readFileSync(codeFile, 'utf8').
+app.listen(PORT,HOST,()=>{console.log(`Manager running on http://${HOST}:${PORT}`)})
