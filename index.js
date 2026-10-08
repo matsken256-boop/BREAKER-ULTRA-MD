@@ -132,54 +132,10 @@ app.get('/code', async (req, res) => {
   global.pairCodes[sessionId] = null
 
   logger(sessionId, `Pair request for ${number} session ${sessionId}`)
-
-  // Start bot to generate code
   startSession(sessionId, number)
 
-  // Wait for code
   let tries = 0
   while (!global.pairCodes[sessionId] && tries < 25) {
     const codeFile = path.join(ROOT, `pair_${sessionId}.txt`)
     if (fs.existsSync(codeFile)) {
-      global.pairCodes[sessionId] = fs.readFileSync(codeFile, 'utf8').trim()
-      try { fs.unlinkSync(codeFile) } catch {}
-      break
-    }
-    await new Promise(r => setTimeout(r, 1000))
-    tries++
-  }
-
-  const code = global.pairCodes[sessionId]
-  if (code) {
-    return res.json({
-      success: true,
-      session: sessionId,
-      number,
-      code,
-      message: 'Enter this code in WhatsApp > Linked Devices > Link with phone number',
-      pair_instructions: 'WhatsApp > Settings > Linked Devices > Link a Device > Link with phone number',
-      dashboard: `/${sessionId}`
-    })
-  }
-  return res.json({ success: false, error: 'Failed to generate, check logs', session: sessionId, logs: `/logs/${sessionId}` })
-})
-
-app.get('/sessions', (req, res) => {
-  const list = getSessions().map(id => ({
-    id,
-    online: activeBots.has(id),
-    path: path.join(SESSIONS_ROOT, id)
-  }))
-  res.json({ total: list.length, running: activeBots.size, sessions: list })
-})
-
-app.get('/status', (req, res) => res.json({ bot: `BREAKER-ULTRA MD v${VERSION}`, multisession: true, total: getSessions().length, running: activeBots.size, timezone: TIMEZONE, uptime: process.uptime() }))
-
-app.get('/start/:id', (req, res) => {
-  startSession(req.params.id)
-  res.redirect('/')
-})
-
-app.get('/stop/:id', (req, res) => {
-  const bot = activeBots.get(req.params.id)
-  if (bot) { bot.kill(); activeBots.delete(req.params.id); logger(req.params.id, 'Stopped by
+      global.pairCodes[sessionId] = fs.readFileSync(codeFile, 'utf8').
