@@ -14,11 +14,11 @@
   },
   "author": "Matsken",
   "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "@whiskeysockets/baileys": "^6.7.19",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "adm-zip": "^0.5.16",
     "axios": "^1.8.3",
-    "better-sqlite3": "^12.2.0",
+    "better-sqlite3": "^9.2.1",
     "chalk": "^4.1.2",
     "cheerio": "^1.1.0",
     "dotenv": "^16.0.3",
@@ -29,4 +29,6 @@
     "jspdf": "^3.0.1",
     "lolcatjs": "^2.4.3",
     "mathjs": "^12.4.2",
-    "megajs": "^
+    "megajs": "^1.3.5"
+  }
+}
