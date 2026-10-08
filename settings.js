@@ -1,35 +1,25 @@
 /**
- * BREAKER-ULTRA-MD - MULTI-SESSION
- * Developer: Matsken
- * Version: 2.7.0 BOX LOCKED
+ * Change the MASTER_PASSWORD to something secure
+ * This password is required for:
+ * - Pairing new sessions
+ * - Accessing paired sessions via web
  */
 
 module.exports = {
-  BOT_NAME: "BREAKER-ULTRA-MD",
-  BOT_VERSION: "2.7.0",
-  SESSION_FOLDER: "./Sessions/breaker",
+  // Web dashboard password — required to pair sessions and access settings
+  MASTER_PASSWORD: process.env.MASTER_PASSWORD || "123456",
 
-  MASTER_PASSWORD: process.env.MASTER_PASSWORD || "Breaker",
-  DATABASE_URL: process.env.DATABASE_URL || "",
-  MONGODB_URL: process.env.MONGODB_URL || process.env.DATABASE_URL || "",
-  PORT: process.env.PORT || 3000,
-  GITHUB_USERNAME: process.env.GITHUB_USERNAME || "matsken256-boop",
+  // PostgreSQL connection string (auto-set by Heroku Postgres add-on)
+  DATABASE_URL: process.env.DATABASE_URL || null,
 
+  // Session access code settings (don't change if you don't know what you're doing)
   ACCESS_CODE_LENGTH: 6,
   ACCESS_CODE_EXPIRY: 5 * 60 * 1000,
 
-  MULTI_SESSION: {
-    enabled: true,
-    allowPairForOthers: true,
-    maxSessions: 10,
-    sessionFolder: "./Sessions/breaker",
-    autoClearInactive: false
-  },
+  // Server port (auto-set by Heroku)
+  PORT: process.env.PORT || 3000,
 
-  botName: "BREAKER-ULTRA-MD",
-  botVersion: "2.7.0",
-  ownerName: "Matsken",
-  ownerNumber: "256769724124",
-  prefix: ".",
-  mode: "public"
-}
+  // Your GitHub username (must have forked the repo)
+  GITHUB_USERNAME: process.env.GITHUB_USERNAME || '',
+
+};
