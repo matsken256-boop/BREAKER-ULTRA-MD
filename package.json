@@ -1,7 +1,7 @@
 {
   "name": "breaker-ultra-md",
   "version": "2.7.0",
-  "description": "The best Whatsapp lightweight bot",
+  "description": "The best Whatsapp lightweig",
   "main": "index.js",
   "engines": {
     "node": ">=20.x",
@@ -29,6 +29,7 @@
     "jspdf": "^3.0.1",
     "lolcatjs": "^2.4.3",
     "mathjs": "^12.4.2",
-    "megajs": "^1.3.5"
+    "megajs": "^1.3.5",
+    "moment-timezone": "^0.5.45"
   }
 }
