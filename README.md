@@ -1,2 +1,2 @@
 # BREAKER-ULTRA-MD
-Official Multi-Device WhatsApp Bot - Fast, Secure,reliable &amp; most Powerful. 
+Official Multi-sension WhatsApp Bot - Fast, Secure,reliable &amp; most Powerful. 
