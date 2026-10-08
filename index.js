@@ -1,15 +1,23 @@
 const express = require('express')
 const fs = require('fs')
 const path = require('path')
+const https = require('https')
 const { spawn } = require('child_process')
 const moment = require('moment-timezone')
 
-// LOAD YOUR SETTINGS.JS - THIS WAS MISSING
-let SETTINGS = {}
+// FORCE LOAD SETTINGS.JS - NO HARDCODED PASSWORD
+let SETTINGS = null
 try {
   SETTINGS = require('./settings.js')
-  console.log('[INFO] Loaded settings.js - MASTER_PASSWORD protection enabled')
-} catch(e) { console.log('[WARN] settings.js not found, using defaults') }
+} catch(e){
+  console.error('[FATAL] settings.js not found! Create it and set MASTER_PASSWORD')
+  process.exit(1)
+}
+
+if(!SETTINGS.MASTER_PASSWORD){
+  console.error('[FATAL] MASTER_PASSWORD not set in settings.js! Set your own password in settings.js')
+  process.exit(1)
+}
 
 const app = express()
 app.use(express.json())
@@ -18,7 +26,7 @@ app.use(express.urlencoded({ extended: true }))
 const PORT = process.env.PORT || SETTINGS.PORT || 3000
 const HOST = '0.0.0.0'
 const TIMEZONE = 'Africa/Kampala'
-const MASTER_PASSWORD = SETTINGS.MASTER_PASSWORD || process.env.MASTER_PASSWORD || "123456"
+const MASTER_PASSWORD = SETTINGS.MASTER_PASSWORD // ONLY from settings.js
 
 const ROOT = __dirname
 const SESSIONS_ROOT = path.join(ROOT, 'Sessions')
@@ -28,6 +36,7 @@ if (!fs.existsSync(SESSIONS_ROOT)) fs.mkdirSync(SESSIONS_ROOT, { recursive: true
 if (!fs.existsSync(LOGS_ROOT)) fs.mkdirSync(LOGS_ROOT, { recursive: true })
 
 const activeBots = new Map()
+
 function getTime(){ return moment().tz(TIMEZONE).format('YYYY-MM-DD HH:mm:ss') }
 function logger(id,msg){
   const line=`[${getTime()}] ${msg}\n`
@@ -36,7 +45,7 @@ function logger(id,msg){
 }
 function getSessions(){
   if(!fs.existsSync(SESSIONS_ROOT)) return []
-  return fs.readdirSync(SESSIONS_ROOT).filter(f=>{ try{ return fs.statSync(path.join(SESSIONS_ROOT,f)).isDirectory()}catch{return false}})
+  return fs.readdirSync(SESSIONS_ROOT).filter(f=>{ try{return fs.statSync(path.join(SESSIONS_ROOT,f)).isDirectory()}catch{return false}})
 }
 function startSession(sessionId, phoneNumber){
   if(activeBots.has(sessionId)){ try{activeBots.get(sessionId).kill()}catch{} activeBots.delete(sessionId) }
@@ -57,31 +66,37 @@ function startSession(sessionId, phoneNumber){
   return bot
 }
 
-// PASSWORD CHECK MIDDLEWARE
 function checkPassword(req){
   const pass = req.query.password || req.headers['x-master-password'] || req.body?.password
   return pass === MASTER_PASSWORD
+}
+
+// TRY TO AUTO-DETECT PUBLIC IP FOR CONSOLE (BEST EFFORT)
+function detectPublicIP(){
+  return new Promise((resolve)=>{
+    https.get('https://api.ipify.org', (res)=>{
+      let data=''; res.on('data',c=>data+=c); res.on('end',()=>resolve(data.trim()))
+    }).on('error',()=>resolve(null))
+  })
 }
 
 app.get('/',(req,res)=>{
   const s=getSessions()
   const fullUrl = `${req.protocol}://${req.get('host')}`
   const isAuthed = checkPassword(req)
-
   if(!isAuthed){
     return res.send(`
     <html><head><title>Login - BREAKER ULTRA MD</title>
     <style>body{background:#0a0a0a;color:#00ff88;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
-   .box{border:1px solid #00ff88;padding:30px;border-radius:10px;text-align:center;background:#111;width:320px}
+.box{border:1px solid #00ff88;padding:30px;border-radius:10px;text-align:center;background:#111;width:320px}
     input{padding:12px;width:90%;margin:10px 0;background:#000;color:#0f8;border:1px solid #0f8}
     button{padding:12px 20px;background:#00ff88;color:#000;border:0;cursor:pointer;font-weight:bold;width:100%}
     </style></head><body>
     <div class="box"><h2>⚡ BREAKER ULTRA MD</h2><p>Enter Master Password</p>
-    <p style="font-size:11px;color:#888">Default from settings.js: 123456</p>
-    <form action="/" method="get"><input type="password" name="password" placeholder="MASTER_PASSWORD" required><button type="submit">UNLOCK DASHBOARD</button></form>
-    <p style="font-size:10px;margin-top:15px">Link: ${fullUrl}/?password=YOUR_PASSWORD</p></div></body></html>`)
+    <p style="font-size:11px;color:#888">Set in settings.js</p>
+    <form action="/" method="get"><input type="password" name="password" placeholder="MASTER_PASSWORD" required><button type="submit">UNLOCK</button></form>
+    <p style="font-size:10px;margin-top:15px">Auto-Detected Link:<br>${fullUrl}</p></div></body></html>`)
   }
-
   res.send(`
   <html><head><title>BREAKER-ULTRA MD v2.7.0</title>
   <style>body{background:#0a0a0a;color:#00ff88;font-family:monospace;padding:20px}
@@ -91,30 +106,28 @@ app.get('/',(req,res)=>{
   </style></head><body>
   <h1>⚡ BREAKER-ULTRA MD v2.7.0 ONLINE</h1>
   <p>🔗 Allocation Auto-Detected: <b>${fullUrl}</b></p>
-  <p>🔐 Logged in with MASTER_PASSWORD</p>
+  <p>🌍 Server IP Detected from Request: <b>${req.get('host')}</b></p>
   <div class="card">
     <h3>PAIR NEW BOT</h3>
     <form action="/code" method="get">
-      <input type="hidden" name="password" value="${MASTER_PASSWORD}">
+      <input type="hidden" name="password" value="${req.query.password}">
       <input name="number" placeholder="2567XXXXXXXX" required style="width:200px">
       <input name="session" placeholder="session name" style="width:150px">
       <button type="submit">GET PAIR CODE</button>
     </form>
-    <p style="font-size:12px">Direct API: ${fullUrl}/code?number=2567XXXX&password=${MASTER_PASSWORD}</p>
   </div>
   <div class="card">
-    <h3>ACTIVE SESSIONS (${s.length}) - ${activeBots.size} running</h3>
-    ${s.map(x=>`<div>📁 ${x} - ${activeBots.has(x)?'🟢 ONLINE':'🔴 OFFLINE'} <a href="/start/${x}?password=${MASTER_PASSWORD}">[START]</a> <a href="/stop/${x}?password=${MASTER_PASSWORD}">[STOP]</a> <a href="/logs/${x}?password=${MASTER_PASSWORD}">[LOGS]</a> <a href="/delete/${x}?password=${MASTER_PASSWORD}">[DEL]</a></div>`).join('')||'No sessions yet'}
+    <h3>SESSIONS (${s.length}) - ${activeBots.size} running</h3>
+    ${s.map(x=>`<div>📁 ${x} - ${activeBots.has(x)?'🟢 ONLINE':'🔴 OFFLINE'} <a href="/start/${x}?password=${req.query.password}">[START]</a> <a href="/stop/${x}?password=${req.query.password}">[STOP]</a> <a href="/logs/${x}?password=${req.query.password}">[LOGS]</a> <a href="/delete/${x}?password=${req.query.password}">[DEL]</a></div>`).join('')||'No sessions yet'}
   </div>
-  <div class="card"><a href="/status?password=${MASTER_PASSWORD}">/status</a> | <a href="/sessions?password=${MASTER_PASSWORD}">/sessions</a> | Time: ${getTime()}</div>
   </body></html>`)
 })
 
 app.get('/code',async(req,res)=>{
-  if(!checkPassword(req)) return res.status(401).json({error:'Wrong MASTER_PASSWORD', hint:'Add?password=123456'})
+  if(!checkPassword(req)) return res.status(401).json({error:'Unauthorized - Wrong MASTER_PASSWORD'})
   let number=(req.query.number||'').replace(/[^0-9]/g,'')
   let sid=(req.query.session||'').replace(/[^a-zA-Z0-9_-]/g,'')||`breaker_${Date.now().toString().slice(-4)}`
-  if(!number) return res.status(400).json({error:'Add?number=2567XXXXXXXX&password=123456'})
+  if(!number) return res.status(400).json({error:'Add?number=2567XXXXXXXX'})
   const sp=path.join(SESSIONS_ROOT,sid)
   if(fs.existsSync(sp)) try{fs.rmSync(sp,{recursive:true,force:true})}catch{}
   fs.mkdirSync(sp,{recursive:true})
@@ -128,15 +141,22 @@ app.get('/code',async(req,res)=>{
     await new Promise(r=>setTimeout(r,1000)); tries++
   }
   const code=global.pairCodes[sid]
-  if(code) return res.json({success:true,session:sid,number,code,pair_url:`${req.protocol}://${req.get('host')}/code?number=${number}&password=${MASTER_PASSWORD}`})
-  return res.json({success:false,error:'Failed to generate, check logs',session:sid,logs:`/logs/${sid}?password=${MASTER_PASSWORD}`})
+  if(code) return res.json({success:true,session:sid,number,code})
+  return res.json({success:false,error:'Failed, check logs',session:sid})
 })
 
-app.get('/sessions',(req,res)=>{ if(!checkPassword(req)) return res.status(401).json({error:'Unauthorized'}); res.json({total:getSessions().length,running:activeBots.size, sessions:getSessions()}) })
-app.get('/status',(req,res)=>{ if(!checkPassword(req)) return res.status(401).json({error:'Unauthorized'}); res.json({bot:'BREAKER-ULTRA MD v2.7.0',total:getSessions().length,running:activeBots.size,uptime:process.uptime(), master_password_set:!!MASTER_PASSWORD}) })
-app.get('/start/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Wrong password'); startSession(req.params.id); res.redirect('/?password='+MASTER_PASSWORD) })
-app.get('/stop/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Wrong password'); const b=activeBots.get(req.params.id); if(b){b.kill();activeBots.delete(req.params.id);logger(req.params.id,'Stopped by user')} res.redirect('/?password='+MASTER_PASSWORD) })
-app.get('/logs/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Wrong password'); const f=path.join(LOGS_ROOT,`${req.params.id}.log`); if(!fs.existsSync(f)) return res.send('No logs'); res.type('text/plain').send(fs.readFileSync(f,'utf8')) })
-app.get('/delete/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Wrong password'); const b=activeBots.get(req.params.id); if(b){try{b.kill()}catch{} activeBots.delete(req.params.id)} try{fs.rmSync(path.join(SESSIONS_ROOT,req.params.id),{recursive:true,force:true})}catch{} res.redirect('/?password='+MASTER_PASSWORD) })
+app.get('/sessions',(req,res)=>{ if(!checkPassword(req)) return res.status(401).json({error:'Unauthorized'}); res.json({total:getSessions().length,running:activeBots.size}) })
+app.get('/status',(req,res)=>{ if(!checkPassword(req)) return res.status(401).json({error:'Unauthorized'}); res.json({bot:'BREAKER-ULTRA MD v2.7.0',total:getSessions().length,running:activeBots.size}) })
+app.get('/start/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Unauthorized'); startSession(req.params.id); res.redirect('/?password='+req.query.password) })
+app.get('/stop/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Unauthorized'); const b=activeBots.get(req.params.id); if(b){b.kill();activeBots.delete(req.params.id)} res.redirect('/?password='+req.query.password) })
+app.get('/logs/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Unauthorized'); const f=path.join(LOGS_ROOT,`${req.params.id}.log`); if(!fs.existsSync(f)) return res.send('No logs'); res.type('text/plain').send(fs.readFileSync(f,'utf8')) })
+app.get('/delete/:id',(req,res)=>{ if(!checkPassword(req)) return res.status(401).send('Unauthorized'); const b=activeBots.get(req.params.id); if(b){try{b.kill()}catch{} activeBots.delete(req.params.id)} try{fs.rmSync(path.join(SESSIONS_ROOT,req.params.id),{recursive:true,force:true})}catch{} res.redirect('/?password='+req.query.password) })
 
-app.listen(PORT,HOST,()=>{console.log(`Manager running on http://${HOST}:${PORT} with MASTER_PASSWORD=${MASTER_PASSWORD}`)})
+app.listen(PORT,HOST,async()=>{
+  console.log(`[INFO] Loaded settings.js - Password protection enabled`)
+  const publicIP = await detectPublicIP()
+  console.log(`Manager running on http://${HOST}:${PORT}`)
+  if(publicIP) console.log(`Public IP detected: ${publicIP}:${PORT}`)
+  console.log(`Dashboard: Use your Katabump allocation link +?password=YOUR_PASSWORD`)
+  console.log(`Example: https://YOUR_ALLOCATION.katabump.com/?password=****`)
+})
