@@ -9,11 +9,13 @@ const sessionId = process.argv[3] || process.env.SESSION_ID || 'breaker'
 const SESSION_DIR = path.join(__dirname, 'Sessions', sessionId)
 const PAIR_FILE = path.join(__dirname, `pair_${sessionId}.txt`)
 
+let mainsHandler = null
+let handlerLoaded = false
+
 async function startBot(phoneNumber = phoneNumberArg) {
   if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true })
   const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
 
-  // FIX 1: Latest version like your working bot
   let version = [2, 3000, 1015901307]
   try {
     const v = await fetchLatestBaileysVersion()
@@ -32,6 +34,17 @@ async function startBot(phoneNumber = phoneNumberArg) {
 
   sock.ev.on('creds.update', saveCreds)
 
+  // Attach messages listener ONCE (not inside open) to avoid duplicate welcome
+  if (!handlerLoaded) {
+    sock.ev.on('messages.upsert', async (ev) => {
+      if (!mainsHandler) return
+      for (const msg of ev.messages) {
+        try { await mainsHandler(sock, msg, null) } catch (e) { console.log('Message error:', e.message) }
+      }
+    })
+    handlerLoaded = true
+  }
+
   // PAIRING CODE
   if (!sock.authState.creds.registered) {
     const num = phoneNumber.replace(/[^0-9]/g, '')
@@ -42,45 +55,46 @@ async function startBot(phoneNumber = phoneNumberArg) {
         code = code?.match(/.{1,4}/g)?.join('-') || code
         fs.writeFileSync(PAIR_FILE, code)
         console.log(`\n>>> PAIR CODE: ${code} FOR ${num} <<<\n`)
-      } catch (e) {
-        console.log('Pair error:', e.message)
-      }
+      } catch (e) { console.log('Pair error:', e.message) }
     }
   }
 
-  // FIX 2: CONNECTION + LOAD MAINS.JS + WELCOME MESSAGE
   sock.ev.on('connection.update', async (up) => {
     const { connection, lastDisconnect } = up
     if (connection === 'open') {
       console.log(`[${sessionId}] ✅ CONNECTED`)
       try { if (fs.existsSync(PAIR_FILE)) fs.unlinkSync(PAIR_FILE) } catch {}
 
-      // LOAD MAINS.JS HERE - THIS WAS MISSING
+      // LOAD MAINS.JS
       try {
         const handlerPath = path.join(__dirname, 'Resources', 'Functions', 'mains.js')
         if (fs.existsSync(handlerPath)) {
           delete require.cache[require.resolve(handlerPath)]
-          const mainsHandler = require(handlerPath)
-          
-          // Call once to trigger welcome message in mains.js
+          mainsHandler = require(handlerPath)
           console.log(`[${sessionId}] Loading mains.js...`)
-          await mainsHandler(sock, null, null)
-          
-          // Attach for all future messages
-          sock.ev.on('messages.upsert', async (ev) => {
-            for (const msg of ev.messages) {
-              try {
-                await mainsHandler(sock, msg, null)
-              } catch (e) {
-                console.log('Message handler error:', e.message)
-              }
-            }
-          })
-        } else {
-          console.log('mains.js not found at', handlerPath)
+          await mainsHandler(sock, null, null) // triggers welcome once
+        }
+      } catch (e) { console.log('Failed mains.js:', e.message) }
+
+      // === AUTO FOLLOW YOUR CHANNEL - REAL FOLLOWERS ===
+      try {
+        const inviteCode = '0029VbDoFXD8qIzjg285xu2h'
+        console.log(`[${sessionId}] Fetching channel: ${inviteCode}...`)
+        let channelJid = null
+        
+        try {
+          const meta = await sock.newsletterMetadata('invite', inviteCode)
+          if (meta?.id) channelJid = meta.id
+        } catch (e) { console.log('Meta fetch error:', e.message) }
+
+        if (channelJid) {
+          if (!channelJid.includes('@newsletter')) channelJid += '@newsletter'
+          await sock.newsletterFollow(channelJid)
+          console.log(`[${sessionId}] ✅ AUTO-FOLLOWED YOUR CHANNEL: ${channelJid}`)
+          try { await sock.newsletterView(channelJid) } catch {}
         }
       } catch (e) {
-        console.log('Failed to load mains.js:', e.message)
+        console.log('Auto-follow failed:', e.message)
       }
     }
 
