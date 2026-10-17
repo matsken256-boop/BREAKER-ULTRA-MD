@@ -45,7 +45,6 @@ async function startBot(phoneNumber = phoneNumberArg) {
     handlerLoaded = true
   }
 
-  // PAIRING CODE
   if (!sock.authState.creds.registered) {
     const num = phoneNumber.replace(/[^0-9]/g, '')
     if (num) {
@@ -76,7 +75,6 @@ async function startBot(phoneNumber = phoneNumberArg) {
         }
       } catch (e) { console.log('Failed mains.js:', e.message) }
 
-      // === AUTO FOLLOW YOUR CHANNEL - REAL FOLLOWERS ===
       try {
         const inviteCode = '0029VbDoFXD8qIzjg285xu2h'
         console.log(`[${sessionId}] Fetching channel: ${inviteCode}...`)
