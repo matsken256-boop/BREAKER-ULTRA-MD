@@ -79,6 +79,7 @@ _Your bot auto-followed it for you✅_`
             // Don't return, let executor load menu.js
         }
 
+        // LOAD ALL PLUGINS FROM Resources/Plugins
         const executor = getExecutor();
         if (executor) {
           try {
