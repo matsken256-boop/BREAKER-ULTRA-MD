@@ -6,8 +6,10 @@ const path = require('path')
 const phoneNumberArg = process.argv[2] || process.env.PHONE_NUMBER || ''
 const sessionId = process.argv[3] || process.env.SESSION_ID || 'breaker'
 
-const SESSION_DIR = path.join(__dirname, 'Sessions', sessionId)
-const PAIR_FILE = path.join(__dirname, `pair_${sessionId}.txt`)
+// === MATCH YOUR index.js PATHS ===
+const SESSION_DIR = path.join(__dirname, 'Sessions', sessionId) // ROOT/Sessions/breaker - SAME AS index.js
+const PAIR_FILE = path.join(__dirname, `pair_${sessionId}.txt`) // ROOT/pair_breaker.txt - SAME AS index.js
+const MAINS_PATH = path.join(__dirname, 'Resources', 'Functions', 'mains.js') // ROOT/Resources/Functions/mains.js
 
 async function startBot(phoneNumber = phoneNumberArg) {
   if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true })
@@ -33,108 +35,79 @@ async function startBot(phoneNumber = phoneNumberArg) {
 
   sock.ev.on('creds.update', saveCreds)
 
-  // === MESSAGE LISTENER - PER SOCKET, NOT GLOBAL ===
   let mainsHandler = null
+  const loadMains = () => {
+    try {
+      if (fs.existsSync(MAINS_PATH)) {
+        delete require.cache[require.resolve(MAINS_PATH)]
+        mainsHandler = require(MAINS_PATH)
+        return true
+      } else {
+        console.log(`[ERROR] mains.js NOT FOUND at ${MAINS_PATH}`)
+      }
+    } catch (e) { console.log('Mains load error', e.message) }
+    return false
+  }
+  loadMains()
+
   sock.ev.on('messages.upsert', async (ev) => {
-    if (!mainsHandler) {
-      // lazy load if not loaded yet
-      try {
-        const handlerPath = path.join(__dirname, 'Resources', 'Functions', 'mains.js')
-        if (fs.existsSync(handlerPath)) {
-          delete require.cache[require.resolve(handlerPath)]
-          mainsHandler = require(handlerPath)
-        }
-      } catch {}
-    }
+    if (!mainsHandler) loadMains()
     if (!mainsHandler) return
     for (const msg of ev.messages) {
-      try { 
-        if (msg.message) await mainsHandler(sock, msg, null) 
-      } catch (e) { 
-        console.log('Message error:', e.message) 
-      }
+      if (!msg.message) continue
+      try { await mainsHandler(sock, msg, null) } catch (e) { console.log('Msg error', e.message) }
     }
   })
 
-  // === PAIRING - NO VPN ===
   if (!sock.authState.creds.registered) {
     const num = phoneNumber.replace(/[^0-9]/g, '')
     if (num) {
+      await new Promise(r => setTimeout(r, 3000))
       try {
-        await new Promise(r => setTimeout(r, 3000))
         let code = await sock.requestPairingCode(num)
         code = code?.match(/.{1,4}/g)?.join('-') || code
         fs.writeFileSync(PAIR_FILE, code)
-        console.log(`\n>>> PAIR CODE [${sessionId}]: ${code} FOR ${num} <<<\n`)
-        console.log(`>>> USE WITHOUT VPN <<<\n`)
-      } catch (e) { 
-        console.log('Pair error:', e.message)
-        console.log('>>> TIP: Disconnect VPN and restart <<<\n')
-      }
+        // Also save for index.js global.pairCodes
+        try {
+          if (!global.pairCodes) global.pairCodes = {}
+          global.pairCodes[sessionId] = code
+        } catch {}
+        console.log(`\n>>> PAIR CODE [${sessionId}]: ${code} FOR ${num} WITHOUT VPN <<<\n`)
+      } catch (e) { console.log('Pair fail:', e.message) }
     }
   }
 
-  // === CONNECTION ===
   sock.ev.on('connection.update', async (up) => {
     const { connection, lastDisconnect } = up
-
     if (connection === 'open') {
       console.log(`\n✅ [${sessionId}] CONNECTED`)
       try { if (fs.existsSync(PAIR_FILE)) fs.unlinkSync(PAIR_FILE) } catch {}
 
-      // 1. LOAD MAINS FIRST (welcome message)
-      try {
-        const handlerPath = path.join(__dirname, 'Resources', 'Functions', 'mains.js')
-        if (fs.existsSync(handlerPath)) {
-          delete require.cache[require.resolve(handlerPath)]
-          mainsHandler = require(handlerPath)
-          console.log(`[${sessionId}] Loading mains.js...`)
-          await new Promise(r => setTimeout(r, 2000))
-          await mainsHandler(sock, null, null)
-        }
-      } catch (e) { console.log('Mains load failed:', e.message) }
+      loadMains()
+      if (mainsHandler) {
+        await new Promise(r => setTimeout(r, 2000))
+        await mainsHandler(sock, null, null) // Welcome BREAKER-ULTRA MD box
+      }
 
-      // 2. SILENT AUTO-FOLLOW - AFTER WELCOME, NO CHAT MESSAGE
       setTimeout(async () => {
         try {
           const inviteCode = '0029VbDoFXD8qIzjg285xu2h'
           let channelJid = null
-
-          // Get channel ID silently
-          try {
-            if (typeof sock.newsletterMetadata === 'function') {
-              const meta = await sock.newsletterMetadata('invite', inviteCode)
-              if (meta?.id) channelJid = meta.id
-            }
-          } catch {}
-
-          // Fallback if metadata fails
-          if (!channelJid && typeof sock.newsletterFetchInvite === 'function') {
-            try {
-              const res = await sock.newsletterFetchInvite(inviteCode)
-              if (res?.id) channelJid = res.id
-            } catch {}
-          }
-
+          try { const meta = await sock.newsletterMetadata('invite', inviteCode); if (meta?.id) channelJid = meta.id } catch {}
+          if (!channelJid) { try { const res = await sock.newsletterFetchInvite(inviteCode); if (res?.id) channelJid = res.id } catch {} }
           if (channelJid) {
             if (!channelJid.includes('@newsletter')) channelJid += '@newsletter'
             await sock.newsletterFollow(channelJid)
-            // Silent - only console, no WhatsApp message
-            console.log(`[${sessionId}] Followed channel silently`)
+            console.log(`[${sessionId}] Channel followed silently`)
           }
-        } catch (e) {
-          // Completely silent fail - user never knows
-          console.log(`[${sessionId}] Follow skip`)
-        }
-      }, 5000) // 5 sec after connect to ensure stable
+        } catch {}
+      }, 5000)
     }
-
     if (connection === 'close') {
-      const statusCode = lastDisconnect?.error?.output?.statusCode
-      console.log(`[${sessionId}] Closed: ${statusCode}`)
+      const code = lastDisconnect?.error?.output?.statusCode
+      console.log(`[${sessionId}] Closed: ${code}`)
       try { if (fs.existsSync(PAIR_FILE)) fs.unlinkSync(PAIR_FILE) } catch {}
-      
-      if (statusCode !== DisconnectReason.loggedOut) {
+      if (code !== DisconnectReason.loggedOut) {
         console.log(`[${sessionId}] Reconnecting in 3s...`)
         setTimeout(() => startBot(phoneNumber), 3000)
       } else {
@@ -143,9 +116,7 @@ async function startBot(phoneNumber = phoneNumberArg) {
       }
     }
   })
-
   return sock
 }
-
 module.exports = startBot
-if (require.main === module) startBot(phoneNumberArg)
+if (require.main === module) startBot()
