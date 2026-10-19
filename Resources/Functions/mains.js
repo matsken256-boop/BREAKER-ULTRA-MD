@@ -24,7 +24,7 @@ function getSettings() {
 }
 
 function getLogo() {
-  const c = [path.join(__dirname,'..','Images','logo.jpg'), path.join(__dirname,'..','..','logo.jpg')]
+  const c = [path.join(__dirname,'..','Images','logo.jpg'), path.join(__dirname,'..','..','logo.jpg'), path.join(__dirname,'logo.jpg')]
   for(let x of c) if(fs.existsSync(x)) return x
   return null
 }
@@ -45,38 +45,63 @@ module.exports = async (sock, msg) => {
   const prefix = '.'
   const body = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || ''
   const jid = msg.key.remoteJid
-  const isPrivate = !jid.endsWith('@g.us')
-  
-  // AUTO DETECT USER
-  const userName = msg.pushName || msg.message?.extendedTextMessage?.contextInfo?.participant || jid.split('@')[0]
-  const userJid = jid.split('@')[0] + ':36'
-  const platform = os.hostname() ? `${os.platform()} - ${os.hostname()}` : 'Linux Panel'
-  const hostPlatform = os.type().includes('Linux') ? 'Linux Panel' : os.platform()
-  // AUTO DETECT TIME BY USER LOCATION (Kampala)
-  const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
-  const userTime = moment().tz(moment.tz.guess() || 'Africa/Kampala').format('DD/MM/YYYY HH:mm z')
 
   if(!body.startsWith(prefix)) return
   const cmd = body.slice(1).trim().split(/ +/)[0].toLowerCase()
   const args = body.slice(1).trim().split(/ +/).slice(1)
   if(!cmd) return
 
-  if(cmd === 'menu' || cmd === 'hi' || cmd === 'hello'){
-    // AUTO DETECTED CONNECTED MESSAGE
-    const connectedMsg = `┌──『 BREAKER-ULTRA MD 』──
-│ » Username: ${userJid}
-│ » Name: ${userName}
-│ » Owner: ${settings.owner}
-│ » Platform: ${hostPlatform}
-│ » Prefix: [ ${prefix} ]
-│ » Mode: ${settings.mode}
-│ » Version: ${settings.version}
-│ » Date & Time: ${dateTime}
-│ » https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
-│ » https://t.me/Matsken1
-│ » https://github.com/matsken256-boop
-└-------------------
-Type *.menu* to see all commands`
+  // ===== FIXED: .menu = ONLY AI MENU (NO WELCOME) =====
+  if(cmd === 'menu'){
+    const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
+    const up = Math.floor(process.uptime() / 60)
+    const hostPlatform = os.type().includes('Linux') ? 'Linux Panel' : os.platform()
 
-    if(isPrivate){
-      await sock.sendMessage(j
+    const pluginsPath = path.join(__dirname, '..', 'Plugins')
+    let files = fs.existsSync(pluginsPath) ? fs.readdirSync(pluginsPath).filter(f=>f.endsWith('.js')).map(f=>f.replace('.js','')) : []
+    const exclude = ['ping','menu','repo','update','restart','p']
+    const aiList = files.filter(f=>!exclude.includes(f.toLowerCase())).sort()
+    
+    let aiText = ''
+    for(let f of aiList) aiText += `│ ➡️ ${f}\n`
+
+    const menuText = `⚡ BREAKER-ULTRA MD v${settings.version} ⚡
+┏━━━━━━━━━━━━━━━━━━━━┓
+┃ 👑 Owner : ${settings.owner}
+┃ 🔣 Prefix : ${prefix}
+┃ 🌐 Mode : ${settings.mode}
+┃ 🔋 Uptime : ${up}m
+┃ 📅 Date : ${dateTime}
+┃ 🖥️ Platform: ${hostPlatform}
+┗━━━━━━━━━━━━━━━━━━━━━━┛
+
+┌⊡ ◇ AI MENU ◇
+${aiText}└⊡
+
+> Total AI: ${aiList.length} cmds`
+
+    const logo = getLogo()
+    if(logo){
+      await sock.sendMessage(jid, { image: fs.readFileSync(logo), caption: menuText }, { quoted: msg })
+    } else {
+      await sock.sendMessage(jid, { text: menuText }, { quoted: msg })
+    }
+    return
+  }
+
+  // ===== PLUGIN HANDLER =====
+  const pluginPath = findPlugin(cmd)
+  if(pluginPath){
+    try{
+      delete require.cache[require.resolve(pluginPath)]
+      const plugin = require(pluginPath)
+      if(typeof plugin === 'function'){
+        await plugin(sock, msg, args)
+      } else if(plugin.execute){
+        await plugin.execute(sock, msg, args)
+      }
+    }catch(e){
+      console.log(`Plugin ${cmd} error:`, e.message)
+    }
+  }
+}
