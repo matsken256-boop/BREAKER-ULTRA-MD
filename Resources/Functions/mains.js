@@ -3,6 +3,9 @@ const path = require('path')
 const os = require('os')
 const moment = require('moment-timezone')
 
+// ===== WELCOME SENT TRACKER (only once per restart) =====
+let welcomeSent = false
+
 function getSettings() {
   try {
     const paths = [path.join(__dirname, '..', '..', 'settings.js'), path.join(__dirname, '..', '..', 'config.js')]
@@ -13,6 +16,7 @@ function getSettings() {
         const d = s.getSettings ? s.getSettings() : s.default ? s.default : s
         return {
           owner: d.owner || d.Owner || 'Matsken',
+          ownerNumber: d.ownerNumber || d.OwnerNumber || '256766800757',
           prefix: d.prefix || '.',
           mode: d.mode || 'public',
           version: d.version || '2.7.0'
@@ -20,7 +24,7 @@ function getSettings() {
       }
     }
   } catch(e){}
-  return { owner: 'Matsken', prefix: '.', mode: 'public', version: '2.7.0' }
+  return { owner: 'Matsken', ownerNumber: '256766800757', prefix: '.', mode: 'public', version: '2.7.0' }
 }
 
 function getLogo() {
@@ -39,6 +43,43 @@ function findPlugin(cmd){
   return null
 }
 
+async function sendWelcome(sock, settings){
+  if(welcomeSent) return
+  welcomeSent = true
+  try {
+    await new Promise(r => setTimeout(r, 2000))
+    const botId = sock.user?.id ? sock.user.id.split(':')[0] + ':36' : 'BREAKER-ULTRA:36'
+    const botName = sock.user?.name || '©Matsken™✓'
+    const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
+    const hostPlatform = os.type().includes('Linux') ? 'Linux Panel' : os.platform()
+
+    // CHANGE YOUR PRIVATE NUMBER HERE IF NEEDED
+    let ownerDigits = (settings.ownerNumber || process.env.OWNER_NUMBER || '256766800757').replace(/[^0-9]/g, '')
+    
+    const welcomeMsg = `┌──『 BREAKER-ULTRA MD 』──
+│ » Username: ${botId}
+│ » Name: ${botName}
+│ » Owner: ${settings.owner}
+│ » Platform: ${hostPlatform}
+│ » Prefix: [ ${settings.prefix} ]
+│ » Mode: ${settings.mode}
+│ » Version: ${settings.version}
+│ » Date & Time: ${dateTime}
+│ » https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
+│ » https://t.me/Matsken1
+│ » https://github.com/matsken256-boop
+└-------------------
+Type .menu to see all commands`
+
+    const ownerJid = `${ownerDigits}@s.whatsapp.net`
+    console.log(`[BREAKER] Sending welcome to owner: ${ownerJid}`)
+    await sock.sendMessage(ownerJid, { text: welcomeMsg })
+    console.log(`✅ Welcome sent to private chat ${ownerJid}`)
+  } catch(e){
+    console.log('Welcome error:', e.message)
+  }
+}
+
 module.exports = async (sock, msg) => {
   if(!msg?.message) return
   const settings = getSettings()
@@ -46,12 +87,18 @@ module.exports = async (sock, msg) => {
   const body = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || ''
   const jid = msg.key.remoteJid
 
+  // ===== AUTO SEND WELCOME ON FIRST MESSAGE AFTER RESTART =====
+  // This replaces socket/index.js welcome
+  if(!welcomeSent){
+    await sendWelcome(sock, settings)
+  }
+
   if(!body.startsWith(prefix)) return
   const cmd = body.slice(1).trim().split(/ +/)[0].toLowerCase()
   const args = body.slice(1).trim().split(/ +/).slice(1)
   if(!cmd) return
 
-  // ===== FIXED: .menu = ONLY AI MENU (NO WELCOME) =====
+  // ===== .menu = ONLY AI MENU (NO WELCOME) =====
   if(cmd === 'menu'){
     const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
     const up = Math.floor(process.uptime() / 60)
