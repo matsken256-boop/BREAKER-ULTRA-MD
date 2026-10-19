@@ -1,7 +1,6 @@
 module.exports = {
     botName: "BREAKER-ULTRA MD",
     
-    // FREE APIs for BREAKER-ULTRA MD
     apis: {
         renz: "https://api.renz.my.id",
         tikly: "https://api.tiklydown.eu.org"
