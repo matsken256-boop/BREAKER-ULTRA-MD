@@ -3,7 +3,6 @@ const path = require('path')
 const os = require('os')
 const moment = require('moment-timezone')
 
-// ===== WELCOME SENT TRACKER (only once per restart) =====
 let welcomeSent = false
 
 function getSettings() {
@@ -16,7 +15,7 @@ function getSettings() {
         const d = s.getSettings ? s.getSettings() : s.default ? s.default : s
         return {
           owner: d.owner || d.Owner || 'Matsken',
-          ownerNumber: d.ownerNumber || d.OwnerNumber || '256766800757',
+          ownerNumber: d.ownerNumber || d.OwnerNumber || '',
           prefix: d.prefix || '.',
           mode: d.mode || 'public',
           version: d.version || '2.7.0'
@@ -24,7 +23,7 @@ function getSettings() {
       }
     }
   } catch(e){}
-  return { owner: 'Matsken', ownerNumber: '256766800757', prefix: '.', mode: 'public', version: '2.7.0' }
+  return { owner: 'Matsken', ownerNumber: '', prefix: '.', mode: 'public', version: '2.7.0' }
 }
 
 function getLogo() {
@@ -43,18 +42,26 @@ function findPlugin(cmd){
   return null
 }
 
-async function sendWelcome(sock, settings){
+async function sendWelcome(sock, settings, msg, jid){
   if(welcomeSent) return
   welcomeSent = true
   try {
     await new Promise(r => setTimeout(r, 2000))
-    const botId = sock.user?.id ? sock.user.id.split(':')[0] + ':36' : 'BREAKER-ULTRA:36'
-    const botName = sock.user?.name || '©Matsken™✓'
+    
+    // ===== 100% AUTO DETECT - NO HARDCODE =====
+    // Username = Auto detect phone number that is logged in
+    const rawId = sock.user?.id || msg?.key?.participant || jid || ''
+    const phoneOnly = rawId.split(':')[0].split('@')[0].replace(/[^0-9]/g, '')
+    const botId = phoneOnly ? `${phoneOnly}:36` : 'Unknown:36'
+    
+    // Name = Auto detect WhatsApp profile name
+    const botName = sock.user?.name || sock.user?.verifiedName || msg?.pushName || 'WhatsApp User'
+    
     const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
     const hostPlatform = os.type().includes('Linux') ? 'Linux Panel' : os.platform()
 
-    // CHANGE YOUR PRIVATE NUMBER HERE IF NEEDED
-    let ownerDigits = (settings.ownerNumber || process.env.OWNER_NUMBER || '256766800757').replace(/[^0-9]/g, '')
+    // Owner number auto-detect from env or settings, or use bot number as fallback
+    let ownerDigits = (settings.ownerNumber || process.env.OWNER_NUMBER || phoneOnly || '256766800757').replace(/[^0-9]/g, '')
     
     const welcomeMsg = `┌──『 BREAKER-ULTRA MD 』──
 │ » Username: ${botId}
@@ -72,9 +79,9 @@ async function sendWelcome(sock, settings){
 Type .menu to see all commands`
 
     const ownerJid = `${ownerDigits}@s.whatsapp.net`
-    console.log(`[BREAKER] Sending welcome to owner: ${ownerJid}`)
+    console.log(`[BREAKER] Auto-detected User: ${botName} (${botId}) -> Sending to ${ownerJid}`)
     await sock.sendMessage(ownerJid, { text: welcomeMsg })
-    console.log(`✅ Welcome sent to private chat ${ownerJid}`)
+    console.log(`✅ Welcome sent to ${ownerJid}`)
   } catch(e){
     console.log('Welcome error:', e.message)
   }
@@ -87,10 +94,8 @@ module.exports = async (sock, msg) => {
   const body = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || ''
   const jid = msg.key.remoteJid
 
-  // ===== AUTO SEND WELCOME ON FIRST MESSAGE AFTER RESTART =====
-  // This replaces socket/index.js welcome
   if(!welcomeSent){
-    await sendWelcome(sock, settings)
+    await sendWelcome(sock, settings, msg, jid)
   }
 
   if(!body.startsWith(prefix)) return
@@ -98,7 +103,6 @@ module.exports = async (sock, msg) => {
   const args = body.slice(1).trim().split(/ +/).slice(1)
   if(!cmd) return
 
-  // ===== .menu = ONLY AI MENU (NO WELCOME) =====
   if(cmd === 'menu'){
     const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
     const up = Math.floor(process.uptime() / 60)
@@ -136,7 +140,6 @@ ${aiText}└⊡
     return
   }
 
-  // ===== PLUGIN HANDLER =====
   const pluginPath = findPlugin(cmd)
   if(pluginPath){
     try{
