@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../../Config.js');
 
 module.exports = {
   command: ["generate"],
@@ -6,12 +7,16 @@ module.exports = {
     if (!args[0]) return sock.sendMessage(m.key.remoteJid, { text: "┌─⊷ ◇ GENERATE ◇\n│ Usage:.generate story about cat\n└─⊷" }, { quoted: m });
 
     const prompt = args.join(' ');
-    const apikey = global.RENZ_APIKEY;
+    const apikey = config.apikeys.megan;
+    const apiBase = config.apis.megan;
 
     try {
-      const { data } = await axios.get(`https://api.renz.my.id/api/ai/gpt?prompt=${encodeURIComponent("Generate creative content: " + prompt)}&apikey=${apikey}`, { timeout: 30000 });
+      const { data } = await axios.get(`${apiBase}/api/ai/gpt`, {
+        params: { prompt: "Generate creative content: " + prompt, key: apikey, text: prompt },
+        timeout: 30000
+      });
 
-      const answer = data.data || data.result || data.answer || "No result";
+      const answer = data.result || data.data || data.answer || data.response || "No result";
 
       await sock.sendMessage(m.key.remoteJid, { 
         text: `┌─⊷ ◇ GENERATE ◇\n│ ${answer}\n└─⊷\n\n🌟BREAKER v2.7.0` 
