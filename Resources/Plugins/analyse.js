@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../../Config.js'); // change to ../Config.js if Config is in root
 
 module.exports = {
   command: ["analyse"],
@@ -6,12 +7,20 @@ module.exports = {
     if (!args[0]) return sock.sendMessage(m.key.remoteJid, { text: "┌─⊷ ◇ ANALYSE ◇\n│ Usage:.analyse what is love\n└─⊷" }, { quoted: m });
 
     const prompt = args.join(' ');
-    const apikey = global.RENZ_APIKEY; // <- FIXED, uses your socket/index.js key
+    const apikey = config.apikeys.megan; // megan_f6ef183d3b34ffee32a022e038f91847
+    const apiBase = config.apis.megan;
 
     try {
-      const { data } = await axios.get(`https://api.renz.my.id/api/ai/gpt?prompt=${encodeURIComponent("Analyse this in detail: " + prompt)}&apikey=${apikey}`, { timeout: 30000 });
+      const { data } = await axios.get(`${apiBase}/api/ai/gpt`, { 
+        params: { 
+          prompt: "Analyse this in detail: " + prompt,
+          key: apikey,
+          text: "Analyse this in detail: " + prompt
+        },
+        timeout: 30000 
+      });
 
-      const answer = data.data || data.result || data.answer || "No analysis";
+      const answer = data.result || data.data || data.answer || data.response || "No analysis";
 
       await sock.sendMessage(m.key.remoteJid, { 
         text: `┌─⊷ ◇ ANALYSE ◇\n│ ${answer}\n└─⊷\n\n🌟BREAKER-ULTRA-MD🌟 v2.7.0` 
