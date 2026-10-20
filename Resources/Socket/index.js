@@ -1,38 +1,57 @@
-const { default: makeASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const P = require('pino');
-const fs = require('fs');
-const path = require('path');
+const axios = require('axios');
 
-global.RENZ_APIKEY ="r_3875b2315c35b921ef87da32"
+// ===== YOUR MEGAN KEY - FIXED HERE IN RESOURCES =====
+const MEGAN_APIKEY = "megan_f6ef183d3b34ffee32a022e038f91847";
+const MEGAN_BASE = "https://api.megan.my.id"; // Change if your Megan has different base URL
 
-async function startBot(sessionId) {
-  if (!sessionId) sessionId = (process.env.OWNER_NUMBER || "BREAKER-ULTRA").replace(/[^0-9]/g, "");
+global.MEGAN_KEY = MEGAN_APIKEY;
+global.MEGAN_BASE = MEGAN_BASE;
+
+// Global AI function that uses YOUR MEGAN KEY
+global.MEGAN_AI = async (prompt) => {
+  try {
+    // Try Megan API first with your key
+    const { data } = await axios.get(`${MEGAN_BASE}/api/ai/gpt?prompt=${encodeURIComponent(prompt)}&apikey=${MEGAN_APIKEY}`, { timeout: 30000 });
+    return data.data || data.result || data.answer || data.message;
+  } catch (e) {
+    // Fallback to Siputzx if Megan fails
+    console.log("Megan failed, using fallback:", e.message);
+    const { data } = await axios.get(`https://api.siputzx.my.id/api/ai/gpt3?prompt=${encodeURIComponent(prompt)}`, { timeout: 20000 });
+    return data.data || data.result || "No answer";
+  }
+};
+
+global.MEGAN_IMG = (prompt) => {
+  return `${MEGAN_BASE}/api/ai/flux?prompt=${encodeURIComponent(prompt)}&apikey=${MEGAN_APIKEY}`;
+};
+
+async function startBot() {
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
   
-  const sessionPath = path.join(__dirname, '..', '..', 'Sessions', sessionId);
-  
-  if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
-  
-  const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-  
-  const sock = makeASocket({
-    logger: P({ level: 'silent' }),
-    printQRInTerminal: false,
+  const sock = makeWASocket({
     auth: {
       creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, P({ level: 'silent' })),
+      keys: makeCacheableSignalKeyStore(state.keys, P().child({ level: "fatal" })),
     },
-    browser: ['BREAKER-ULTRA MD', 'Chrome', '1.0.0']
+    logger: P({ level: "silent" }),
+    browser: ["BREAKER-ULTRA-MD", "Chrome", "1.0.0"],
   });
-  
+
+  global.sock = sock;
+  console.log("✅ BREAKER v2.7.0 - MEGAN KEY LOADED IN resources/socket/index.js");
+
   sock.ev.on('creds.update', saveCreds);
-  
-  if (!sock.authState.creds.registered) {
-    setTimeout(async () => {
-      try {
-        const code = await sock.requestPairingCode(sessionId.replace(/[^0-9]/g, ''));
-        console.log(`\nPAIR CODE for ${sessionId}: ${code}\n`);
-      } catch (e) { 
-        console.log(`Pair error: ${e.message}`); 
-      }
-    }, 3000);
-  }
+
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === 'close') {
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      if (shouldReconnect) startBot();
+    } else if (connection === 'open') {
+      console.log('✅ BREAKER Connected - MEGAN AI Ready!');
+    }
+  });
+
+  // Load handler - your old handler file
