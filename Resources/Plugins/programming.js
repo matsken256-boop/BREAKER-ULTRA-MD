@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../../Config.js');
 
 module.exports = {
   command: ["programming"],
@@ -6,13 +7,17 @@ module.exports = {
     if (!args[0]) return sock.sendMessage(m.key.remoteJid, { text: "┌─⊷ ◇ PROGRAMMING ◇\n│ Usage:.programming make calculator in python\n└─⊷" }, { quoted: m });
 
     const prompt = args.join(' ');
-    const apikey = global.RENZ_APIKEY;
+    const apikey = config.apikeys.megan;
+    const apiBase = config.apis.megan;
 
     try {
       const fullPrompt = `You are expert programmer. Write clean, working code with comments for: ${prompt}. Give explanation after code.`;
-      const { data } = await axios.get(`https://api.renz.my.id/api/ai/gpt?prompt=${encodeURIComponent(fullPrompt)}&apikey=${apikey}`, { timeout: 40000 });
+      const { data } = await axios.get(`${apiBase}/api/ai/gpt`, {
+        params: { prompt: fullPrompt, key: apikey, text: fullPrompt },
+        timeout: 40000
+      });
 
-      const answer = data.data || data.result || data.answer || "No result";
+      const answer = data.result || data.data || data.answer || data.response || "No result";
 
       await sock.sendMessage(m.key.remoteJid, { 
         text: `┌─⊷ ◇ PROGRAMMING ◇\n│ ${answer}\n└─⊷\n\n🌟BREAKER v2.7.0` 
