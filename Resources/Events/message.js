@@ -1,25 +1,38 @@
+require('../Functions/mains.js')
+require('../Socket/index.js')
+
 const fs = require('fs')
 const path = require('path')
 
-// Safe require settings
 let config = {}
 try {
-    config = require('../../settings')
+  config = require('../../settings')
 } catch {
-    try { config = require('../../settings.js') } catch { config = {} }
+  try { config = require('../../settings.js') } catch { config = {} }
 }
 config.prefix = config.prefix || '.'
 config.ownerName = config.ownerName || 'Matsken'
-config.ownerNumber = config.ownerNumber || ['256...']
+config.ownerNumber = config.ownerNumber || ['256']
 config.mode = config.mode || 'public'
 config.version = config.version || '2.7.0'
 
-// Safe smsg
 let smsg = (conn, m) => m
 try {
-    const lib = require('../Lib/myfunc')
-    if (lib.smsg) smsg = lib.smsg
-} catch {}
+  const lib = require('../Functions/myfunc')
+  if (lib.smsg) smsg = lib.smsg
+} catch {
+  try {
+    const lib2 = require('../Lib/myfunc')
+    if (lib2.smsg) smsg = lib2.smsg
+  } catch {}
+}
+
+const PluginsPath = path.join(__dirname, '../Plugins')
+
+function getPlugins() {
+  if (!fs.existsSync(PluginsPath)) return []
+  return fs.readdirSync(PluginsPath).filter(f => f.endsWith('.js'))
+}
 
 module.exports = async (conn, m) => {
   try {
@@ -41,49 +54,44 @@ module.exports = async (conn, m) => {
     if (!body) return
 
     const prefix = config.prefix || '.'
-    const isCmd = body.startsWith(prefix)
-    
-    // Allow .p even without checking isCmd properly
-    let args, command, text
-    if (isCmd) {
-        args = body.slice(prefix.length).trim().split(/ +/)
-        command = args.shift().toLowerCase()
-        text = args.join(' ')
-    } else {
-        // Not a command, ignore for now but still log
-        return
-    }
+    if (!body.startsWith(prefix)) return
 
+    const args = body.slice(prefix.length).trim().split(/ +/)
+    const command = args.shift().toLowerCase()
+    const text = args.join(' ')
     const senderNum = sender.split('@')[0]
     const isOwner = (Array.isArray(config.ownerNumber) ? config.ownerNumber.includes(senderNum) : false) || m.key.fromMe
 
     console.log(`[CMD] ${pushname}: ${prefix}${command}`)
 
-    switch(command) {
-      case 'p': // <-- ADDED .p
+    switch (command) {
+      case 'p':
       case 'ping':
       case 'alive': {
-        await conn.sendMessage(from, { text: `⚡ *BREAKER-ULTRA MD*\n\n✅ Online\n⏱️ ${new Date().toLocaleString('en-GB', { timeZone: 'Africa/Nairobi' })} EAT\n👤 ${pushname}\n🏠 ${process.env.RENDER ? 'Render' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Panel'}\n\n_Mode: ${config.mode}_` }, { quoted: m })
+        await conn.sendMessage(from, { 
+          text: `⚡ *BREAKER-ULTRA MD*\n\n✅ Online\n⏱️ ${new Date().toLocaleString('en-GB', { timeZone: 'Africa/Nairobi' })} EAT\n👤 ${pushname}\n🏠 ${process.env.RENDER ? 'Render' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Panel'}\n\n_Mode: ${config.mode}_` 
+        }, { quoted: m })
         break
       }
 
       case 'menu':
       case 'help': {
+        const files = getPlugins()
+        let list = files.map(f => `• ${prefix}${f.replace('.js','')}`).join('\n')
         let menu = `╔════════════════════╗
 ║ ⚡ *BREAKER-ULTRA MD* ║
 ╠════════════════════╣
-║ Owner: ${config.ownerName}
-║ Prefix: ${prefix}
-║ Mode: ${config.mode}
-║ Version: ${config.version}
+║ *Owner:* ${config.ownerName}
+║ *Prefix:* ${prefix}
+║ *Mode:* ${config.mode}
+║ *Version:* ${config.version}
+║ *Plugins:* ${files.length}
 ╚════════════════════╝
 
-*PRO COMMANDS:*
-• ${prefix}p - Check bot
-• ${prefix}ping - Check bot
-• ${prefix}menu - This menu
-• ${prefix}owner - Owner info
-`
+*ALL COMMANDS:*
+${list}
+
+_Type ${prefix}ping to check_`
         await conn.sendMessage(from, { text: menu }, { quoted: m })
         break
       }
@@ -95,26 +103,43 @@ module.exports = async (conn, m) => {
       }
 
       default: {
-        // === THIS IS THE FIX - LOAD ALL OTHER PLUGINS ===
-        try {
-            const PluginsPath = path.join(__dirname, '../Plugins')
-            if (fs.existsSync(PluginsPath)) {
-                const files = fs.readdirSync(PluginsPath).filter(f => f.endsWith('.js'))
-                for (const file of files) {
-                    try {
-                        const full = path.join(PluginsPath, file)
-                        delete require.cache[require.resolve(full)]
-                        const plugin = require(full)
-                        if (typeof plugin === 'function') {
-                            await plugin(conn, m, config, null)
-                        }
-                    } catch (e) {
-                        // silent
-                    }
-                }
+        const files = getPlugins()
+        for (const file of files) {
+          try {
+            const full = path.join(PluginsPath, file)
+            delete require.cache[require.resolve(full)]
+            const plugin = require(full)
+            
+            const cmdName = file.replace('.js','').toLowerCase()
+            
+            if (plugin.command) {
+              const cmds = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
+              if (!cmds.map(c => c.toLowerCase()).includes(command) && cmdName !== command) continue
+              if (plugin.execute) {
+                await plugin.execute(conn, m, args, { config, text, command, sender, pushname })
+                return
+              }
+              if (typeof plugin === 'function') {
+                await plugin(conn, m, args)
+                return
+              }
             }
-        } catch (e) {
-            console.log('Plugins load error:', e.message)
+            
+            if (typeof plugin === 'function') {
+              if (cmdName === command) {
+                await plugin(conn, m, config, { text, args })
+                return
+              }
+            }
+            
+            if (plugin.execute && cmdName === command) {
+              await plugin.execute(conn, m, args, { config, text, command })
+              return
+            }
+            
+          } catch (e) {
+            console.log(`[PLUGIN ERROR] ${file}: ${e.message}`)
+          }
         }
         break
       }
@@ -122,6 +147,5 @@ module.exports = async (conn, m) => {
 
   } catch (e) {
     console.log('Error in messages.js:', e.message)
-    console.log(e.stack)
   }
 }
