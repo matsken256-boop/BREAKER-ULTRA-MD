@@ -14,7 +14,7 @@ function getSettings() {
         const s = require(p)
         const d = s.getSettings ? s.getSettings() : s.default ? s.default : s
         return {
-          owner: d.owner || d.Owner || 'Matsken',
+          owner: 'Matsken',
           ownerNumber: d.ownerNumber || d.OwnerNumber || '',
           prefix: d.prefix || '.',
           mode: d.mode || 'public',
@@ -47,31 +47,24 @@ async function sendWelcome(sock, settings, msg, jid){
   welcomeSent = true
   try {
     await new Promise(r => setTimeout(r, 2000))
-    
-    // ===== 100% AUTO DETECT - NO HARDCODE =====
-    // Username = Auto detect phone number that is logged in
     const rawId = sock.user?.id || msg?.key?.participant || jid || ''
     const phoneOnly = rawId.split(':')[0].split('@')[0].replace(/[^0-9]/g, '')
-    const botId = phoneOnly ? `${phoneOnly}:36` : 'Unknown:36'
-    
-    // Name = Auto detect WhatsApp profile name
-    const botName = sock.user?.name || sock.user?.verifiedName || msg?.pushName || 'WhatsApp User'
-    
+    const botId = phoneOnly || 'Unknown'
+    const botName = msg?.pushName || sock.user?.name || 'WhatsApp User'
     const dateTime = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm') + ' EAT'
     const hostPlatform = os.type().includes('Linux') ? 'Linux Panel' : os.platform()
+    let ownerDigits = (settings.ownerNumber || process.env.OWNER_NUMBER || phoneOnly).replace(/[^0-9]/g, '')
+    if(!ownerDigits) ownerDigits = phoneOnly
 
-    // Owner number auto-detect from env or settings, or use bot number as fallback
-    let ownerDigits = (settings.ownerNumber || process.env.OWNER_NUMBER || phoneOnly || '256766800757').replace(/[^0-9]/g, '')
-    
     const welcomeMsg = `┌──『 BREAKER-ULTRA MD 』──
-│ » Username: ${botId}
-│ » Name: ${botName}
-│ » Owner: ${settings.owner}
-│ » Platform: ${hostPlatform}
-│ » Prefix: [ ${settings.prefix} ]
-│ » Mode: ${settings.mode}
-│ » Version: ${settings.version}
-│ » Date & Time: ${dateTime}
+│ » *Username*: ${botId}
+│ » *Name*: ${botName}
+│ » *Owner*: Matsken
+│ » *Platform*: ${hostPlatform}
+│ » *Prefix*: [ ${settings.prefix} ]
+│ » *Mode*: ${settings.mode}
+│ » *Version*: ${settings.version}
+│ » *Date & Time*: ${dateTime}
 │ » https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
 │ » https://t.me/Matsken1
 │ » https://github.com/matsken256-boop
@@ -112,18 +105,18 @@ module.exports = async (sock, msg) => {
     let files = fs.existsSync(pluginsPath) ? fs.readdirSync(pluginsPath).filter(f=>f.endsWith('.js')).map(f=>f.replace('.js','')) : []
     const exclude = ['ping','menu','repo','update','restart','p']
     const aiList = files.filter(f=>!exclude.includes(f.toLowerCase())).sort()
-    
+
     let aiText = ''
     for(let f of aiList) aiText += `│ ➡️ ${f}\n`
 
     const menuText = `⚡ BREAKER-ULTRA MD v${settings.version} ⚡
 ┏━━━━━━━━━━━━━━━━━━━━┓
-┃ 👑 Owner : ${settings.owner}
-┃ 🔣 Prefix : ${prefix}
-┃ 🌐 Mode : ${settings.mode}
-┃ 🔋 Uptime : ${up}m
-┃ 📅 Date : ${dateTime}
-┃ 🖥️ Platform: ${hostPlatform}
+┃ 👑 *Owner* : Matsken
+┃ 🔣 *Prefix* : ${prefix}
+┃ 🌐 *Mode* : ${settings.mode}
+┃ 🔋 *Uptime* : ${up}m
+┃ 📅 *Date* : ${dateTime}
+┃ 🖥️ *Platform*: ${hostPlatform}
 ┗━━━━━━━━━━━━━━━━━━━━━━┛
 
 ┌⊡ ◇ AI MENU ◇
