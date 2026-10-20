@@ -1,42 +1,74 @@
-const fs = require('fs')
-const path = require('path')
-const os = require('os')
-const moment = require('moment-timezone')
-
-let welcomeSent = false
-
-// SAFE RESOURCE LOADER - DOES NOT BLOCK PAIRING
+let settings = {}
 try {
-  const possibleRes = path.join(__dirname, '..', 'resources')
-  if (fs.existsSync(possibleRes)) {
-    fs.readdirSync(possibleRes).forEach(file => {
-      if (file.endsWith('.js')) {
-        try {
-          const full = path.join(possibleRes, file)
-          const mod = require(full)
-          if (mod && typeof mod === 'object') {
-            Object.keys(mod).forEach(k => {
-              if (!global[k]) global[k] = mod[k]
-            })
-          }
-        } catch {}
-      }
-    })
-  }
-  
-  // Also check if resources is a single file that exports everything
-  const resFile = path.join(__dirname, '..', 'resources.js')
-  if (fs.existsSync(resFile)) {
-    try {
-      const mod = require(resFile)
-      if (mod && typeof mod === 'object') {
-        Object.keys(mod).forEach(k => {
-          if (!global[k]) global[k] = mod[k]
-        })
-      }
-    } catch {}
-  }
-} catch (e) {
-  // NEVER CRASH - just log
-  console.log("Resource loader skipped:", e.message)
+  settings = require('../../settings')
+} catch {
+  try { settings = require('../../settings.js') } catch { settings = {} }
 }
+
+settings.prefix = settings.prefix || '.'
+settings.ownerName = settings.ownerName || 'Matsken'
+settings.mode = settings.mode || 'public'
+settings.version = settings.version || '2.0.0'
+settings.botName = settings.botName || 'BREAKER-ULTRA MD'
+
+const hostPlatform = process.env.RENDER ? 'Render' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : process.env.KOYEB ? 'Koyeb' : process.env.REPLIT ? 'Replit' : 'Panel'
+
+async function mains(sock) {
+
+  sock.ev.on('connection.update', async (update) => {
+    const { connection } = update
+    
+    if (connection === 'open') {
+      console.log('✅ Bot Connected - BREAKER-ULTRA MD')
+
+      let ownerJid = null
+      try {
+        const ownerNum = Array.isArray(settings.ownerNumber) ? settings.ownerNumber[0] : settings.ownerNumber || '256'
+        ownerJid = `${ownerNum}@s.whatsapp.net`
+      } catch {
+        ownerJid = sock.user?.id || null
+      }
+
+      if (!ownerJid) return
+
+      // ===== FIXED VARIABLES =====
+      const dateTime = new Date().toLocaleString('en-GB', {
+        timeZone: 'Africa/Nairobi',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }) + ' EAT'
+
+      const botId = sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0] || 'BREAKER-ULTRA'
+      const botName = sock.user?.name || settings.botName || settings.ownerName || 'Matsken'
+
+      // ===== YOUR EXACT DESIGNED WELCOME - NOTHING CHANGED =====
+      const welcomeMsg = `┌──『 BREAKER-ULTRA MD 』──
+│ » *Username*: ${botId}
+│ » *Name*: ${botName}
+│ » *Owner*: Matsken
+│ » *Platform*: ${hostPlatform}
+│ » *Prefix*: [ ${settings.prefix} ]
+│ » *Mode*: ${settings.mode}
+│ » *Version*: ${settings.version}
+│ » *Date & Time*: ${dateTime}
+│ » https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
+│ » https://t.me/Matsken1
+│ » https://github.com/matsken256-boop
+└-------------------
+Type .menu to see all commands`
+
+      try {
+        await sock.sendMessage(ownerJid, { text: welcomeMsg })
+        console.log('[MAINS] Welcome private message sent')
+      } catch (e) {
+        console.log('[MAINS WELCOME ERROR]', e.message)
+      }
+    }
+  })
+}
+
+module.exports = mains
