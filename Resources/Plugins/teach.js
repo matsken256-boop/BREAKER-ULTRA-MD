@@ -3,7 +3,20 @@ const axios = require('axios');
 module.exports = {
   command: ["teach"],
   execute: async (sock, m, args) => {
-    if (!args[0]) return sock.sendMessage(m.key.remoteJid, { text: "┌─⊷ ◇ TEACH ◇\n│ Usage:.teach photosynthesis\n└─⊷" }, { quoted: m });
+    if (!args[0]) return const axios = require('axios');
+module.exports = {
+  execute: async (sock, m, args) => {
+    if (!args[0]) return sock.sendMessage(m.key.remoteJid, { text: "┌─⊷ ◇ TEACH ◇\n│ .teach photosynthesis\n└─⊷" }, { quoted: m });
+    try {
+      const prompt = args.join(' ');
+      // Uses MEGAN KEY from resources/socket/index.js
+      const answer = await global.MEGAN_AI(`Explain like I'm 10: ${prompt}`);
+      await sock.sendMessage(m.key.remoteJid, { text: `┌─⊷ ◇ TEACH ◇\n│ ${answer}\n└─⊷\n\n🌟BREAKER v2.7.0 | MEGAN` }, { quoted: m });
+    } catch (e) {
+      await sock.sendMessage(m.key.remoteJid, { text: `┌─⊷ ◇ ERROR ◇\n│ ${e.message}\n└─⊷` }, { quoted: m });
+    }
+  }
+};, { text: "┌─⊷ ◇ TEACH ◇\n│ Usage:.teach photosynthesis\n└─⊷" }, { quoted: m });
 
     const apikey = global.RENZ_APIKEY;
 
