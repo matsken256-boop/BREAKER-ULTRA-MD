@@ -1,17 +1,18 @@
+const { runtime } = require('../resources/utils');
+
 module.exports = {
   execute: async (sock, m, args) => {
-    const up = Math.floor(process.uptime() / 60);
     const moment = require('moment-timezone');
     const date = moment().tz('Africa/Kampala').format('DD/MM/YYYY HH:mm');
+    const uptime = runtime(process.uptime());
 
     const text = `⚡ BREAKER-ULTRA MD v2.7.0 ⚡
-⚡
 ┌──
 ┐
 │ 👑 *Owner* : Matsken
 │ 🔣 *Prefix* : .
 │ 🌐 *Mode* : public
-│ 🔋 *Uptime* : ${up}m
+│ 🔋 *Uptime* : ${uptime}
 │ 📅 *Date* : ${date} EAT
 │ 🖥️ *Platform*: Linux Panel
 └──
