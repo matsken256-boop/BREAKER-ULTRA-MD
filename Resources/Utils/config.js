@@ -1,9 +1,9 @@
 module.exports = {
     botName: "BREAKER-ULTRA MD",
     apis: {
-        renz: "https://api.renz.my.id"
+        megan: "https://megan-api.vercel.app"
     },
     apikeys: {
-        renz: "r_3879b2315c350921cf876a32" // your 100/day free key
+        megan: "megan_f6ef183d3b34ffee32a022e038f91847"
     }
 };
