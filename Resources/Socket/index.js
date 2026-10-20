@@ -3,10 +3,7 @@ const P = require('pino');
 const fs = require('fs');
 const path = require('path');
 
-global.RENZ_APIKEY =r_3875b2315c35b921ef87da32 "YOUR_RENZ_APIKEY_HERE";
-// Example: global.RENZ_APIKEY = "renz_xxxxxxxxxxxx";
-// Get your key from: https://api.renz.my.id
-// ====================================================
+global.RENZ_APIKEY ="r_3875b2315c35b921ef87da32"
 
 async function startBot(sessionId) {
   if (!sessionId) sessionId = (process.env.OWNER_NUMBER || "BREAKER-ULTRA").replace(/[^0-9]/g, "");
