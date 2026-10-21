@@ -1,30 +1,31 @@
 const axios = require('axios');
-const config = require('../../Config.js');
+let config = {}
+try { config = require('../../config.js') } catch { try { config = require('../../Config.js') } catch {} }
 
 module.exports = {
-  command: ["programming"],
+  command: ["programming", "code", "program"],
   execute: async (sock, m, args) => {
-    if (!args[0]) return sock.sendMessage(m.key.remoteJid, { text: "┌─⊷ ◇ PROGRAMMING ◇\n│ Usage:.programming make calculator in python\n└─⊷" }, { quoted: m });
+    const jid = m.key.remoteJid;
+    if (!args[0]) return await sock.sendMessage(jid, { text: "┌─⊷ ◇ PROGRAMMING ◇\n│ Usage: .programming make calculator in python\n└─⊷" }, { quoted: m });
 
     const prompt = args.join(' ');
-    const apikey = config.apikeys.megan;
-    const apiBase = config.apis.megan;
-
     try {
-      const fullPrompt = `You are expert programmer. Write clean, working code with comments for: ${prompt}. Give explanation after code.`;
-      const { data } = await axios.get(`${apiBase}/api/ai/gpt`, {
-        params: { prompt: fullPrompt, key: apikey, text: fullPrompt },
-        timeout: 40000
-      });
-
-      const answer = data.result || data.data || data.answer || data.response || "No result";
-
-      await sock.sendMessage(m.key.remoteJid, { 
-        text: `┌─⊷ ◇ PROGRAMMING ◇\n│ ${answer}\n└─⊷\n\n🌟BREAKER v2.7.0` 
-      }, { quoted: m });
-
+      await sock.sendPresenceUpdate('composing', jid);
+      let answer;
+      if (typeof global.MEGAN_AI === 'function') {
+        answer = await global.MEGAN_AI(`You are expert programmer. Write clean, working code with comments for: ${prompt}. Give explanation after code.`);
+      } else {
+        const apikey = config.apikeys?.megan || global.MEGAN_APIKEY || "megan_fc148d34fe9b3a2";
+        const apiBase = config.apis?.megan || global.MEGAN_BASE || "https://megan-api.vercel.app";
+        const { data } = await axios.get(`${apiBase}/api/ai`, {
+          params: { prompt: `Write code for: ${prompt}`, key: apikey, text: prompt },
+          timeout: 40000
+        });
+        answer = data.result || data.data || data.answer || data.response;
+      }
+      await sock.sendMessage(jid, { text: `┌─⊷ ◇ PROGRAMMING ◇\n│ ${answer || "No result"}\n└─⊷` }, { quoted: m });
     } catch (e) {
-      await sock.sendMessage(m.key.remoteJid, { text: `┌─⊷ ◇ ERROR ◇\n│ Code gen failed: ${e.message}\n└─⊷` }, { quoted: m });
+      await sock.sendMessage(jid, { text: `❌ ${e.message}` }, { quoted: m });
     }
   }
 };
