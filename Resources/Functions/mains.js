@@ -1,139 +1,155 @@
-let settings = {}
-try {
-  settings = require('../../config') // you had settings, but your file is config.js
-} catch {
-  try { settings = require('../../settings') } catch { settings = {} }
-}
-try {
-  const cfg2 = require('../../config.js')
-  settings = { ...settings, ...cfg2 }
-} catch {}
-
-settings.prefix = settings.prefix || '.'
-settings.ownerName = settings.ownerName || 'Matsken'
-settings.mode = settings.mode || 'public'
-settings.version = settings.version || '2.0.0'
-settings.botName = settings.botName || 'BREAKER-ULTRA MD'
-settings.ownerNumber = settings.ownerNumber || ["2567XXXXXXXX"]
-
 const fs = require('fs')
 const path = require('path')
-const hostPlatform = process.env.RENDER ? 'Render' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : process.env.KOYEB ? 'Koyeb' : 'Panel'
 
-process.setMaxListeners(0)
-require('events').EventEmitter.defaultMaxListeners = 0
+let config = {}
+try { config = require('../../settings') } catch { try { config = require('../../settings.js') } catch { config = {} } }
+config.prefix = config.prefix || '.'
+config.ownerName = config.ownerName || 'Matsken'
+config.ownerNumber = config.ownerNumber || ['256766800757']
+config.mode = config.mode || 'public'
+config.version = config.version || '2.7.0'
 
-async function mains(sock, m) {
-  // --- PART 1: CONNECTION (Welcome Message) - Only run once ---
-  sock.ev.removeAllListeners('connection.update')
-  
-  sock.ev.on('connection.update', async (update) => {
-    const { connection } = update
-    if (connection === 'open') {
-      console.log('✅ Bot Connected - BREAKER-ULTRA MD')
-      let ownerJid = null
-      try {
-        const ownerNum = Array.isArray(settings.ownerNumber) ? settings.ownerNumber[0] : settings.ownerNumber
-        ownerJid = `${ownerNum}@s.whatsapp.net`
-      } catch {
-        ownerJid = sock.user?.id || null
-      }
-      if (!ownerJid) return
+let smsg = (conn, m) => m
+try { const lib = require('../Functions/myfunc'); if (lib.smsg) smsg = lib.smsg } catch {}
+try { const lib2 = require('../Lib/myfunc'); if (lib2.smsg) smsg = lib2.smsg } catch {}
+try { const lib3 = require('./myfunc'); if (lib3.smsg) smsg = lib3.smsg } catch {}
 
-      const dateTime = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Nairobi', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) + ' EAT'
-      const botId = sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0] || 'BREAKER-ULTRA'
-      const botName = sock.user?.name || settings.botName
-
-      const welcomeMsg = `┌──『 BREAKER-ULTRA MD 』──
-│ » *Username*: ${botId}
-│ » *Name*: ${botName}
-│ » *Owner*: ${settings.ownerName}
-│ » *Platform*: ${hostPlatform}
-│ » *Prefix*: [ ${settings.prefix} ]
-│ » *Mode*: ${settings.mode}
-│ » *Version*: ${settings.version}
-│ » *Date & Time*: ${dateTime}
-└-------------------
-Type .menu to see all commands`
-
-      try { await sock.sendMessage(ownerJid, { text: welcomeMsg }) } catch (e) { console.log('[WELCOME ERROR]', e.message) }
-    }
-  })
-
-  // --- PART 2: MESSAGE HANDLER - THIS WAS MISSING - FIXES NO REPLY ---
-  if (!m) return; // if called from socket/index.js without message, skip
-  try {
-    const msg = m
-    if (!msg.message) return
-    
-    const from = msg.key.remoteJid
-    const isGroup = from.endsWith('@g.us')
-    const type = Object.keys(msg.message)[0]
-    const body = (type === 'conversation' && msg.message.conversation) ? msg.message.conversation : (type === 'extendedTextMessage' && msg.message.extendedTextMessage.text) ? msg.message.extendedTextMessage.text : (type === 'imageMessage' && msg.message.imageMessage.caption) ? msg.message.imageMessage.caption : (type === 'videoMessage' && msg.message.videoMessage.caption) ? msg.message.videoMessage.caption : ''
-    
-    if (!body) return
-    
-    // Check prefix
-    const prefixes = Array.isArray(settings.prefix) ? settings.prefix : [settings.prefix]
-    let prefix = prefixes.find(p => body.startsWith(p))
-    if (!prefix) return // not a command
-    
-    const args = body.slice(prefix.length).trim().split(/ +/)
-    const command = args.shift().toLowerCase()
-    
-    // Owner check if private mode
-    const sender = msg.key.participant || from
-    const ownerNums = (Array.isArray(settings.ownerNumber) ? settings.ownerNumber : [settings.ownerNumber]).map(n => n.replace(/[^0-9]/g,''))
-    const isOwner = ownerNums.some(n => sender.includes(n))
-    
-    if (settings.mode === 'private' && !isOwner && settings.public === false) {
-        return // ignore non-owners in private mode
-    }
-
-    console.log(`[CMD] ${command} from ${sender} in ${isGroup ? 'group' : 'private'}`)
-
-    // Load command file
-    const pluginsDir = path.join(__dirname, '../plugins')
-    const commandsDir = path.join(__dirname, '../commands')
-    let cmdPath = null
-    
-    if (fs.existsSync(pluginsDir)) {
-        const files = fs.readdirSync(pluginsDir)
-        for (let f of files) {
-            if (f.toLowerCase() === `${command}.js` || f.toLowerCase().startsWith(command)) {
-                cmdPath = path.join(pluginsDir, f)
-                break
-            }
-        }
-    }
-    if (!cmdPath && fs.existsSync(commandsDir)) {
-        const files = fs.readdirSync(commandsDir)
-        for (let f of files) {
-            if (f.toLowerCase() === `${command}.js`) {
-                cmdPath = path.join(commandsDir, f)
-                break
-            }
-        }
-    }
-
-    // Fallback: menu/ping built-in for testing
-    if (command === 'ping' || command === 'menu' || command === 'alive') {
-        await sock.sendMessage(from, { text: `✅ BREAKER-ULTRA MD is alive!\n\nCommand: ${prefix}${command}\nMode: ${settings.mode}\nPrefix: ${prefix}\nBot: ${settings.botName}` }, { quoted: msg })
-        return
-    }
-
-    if (cmdPath) {
-        const cmd = require(cmdPath)
-        if (typeof cmd === 'function') {
-            await cmd(sock, msg, args, { settings, prefix, command, from, isGroup, isOwner })
-        } else if (cmd.run || cmd.execute) {
-            await (cmd.run || cmd.execute)(sock, msg, args, { settings })
-        }
-    }
-
-  } catch (err) {
-    console.log('[MAINS MSG ERROR]', err.message)
-  }
+function findPluginsFolder() {
+  const tries = [
+    path.join(__dirname, '../Plugins'),
+    path.join(__dirname, '../../Plugins'),
+    path.join(__dirname, '../plugins'),
+    path.join(__dirname, '../../plugins'),
+    path.join(process.cwd(), 'Plugins'),
+    path.join(process.cwd(), 'plugins')
+  ]
+  for (const p of tries) if (fs.existsSync(p)) return p
+  return null
 }
 
-module.exports = mains
+const PLUGINS_DIR = findPluginsFolder()
+let plugins = {}
+let allCommands = []
+
+function loadAllPlugins() {
+  plugins = {}
+  allCommands = []
+  if (!PLUGINS_DIR) {
+    console.log('[PLUGINS] Folder not found!')
+    return
+  }
+  const files = fs.readdirSync(PLUGINS_DIR).filter(f => f.endsWith('.js'))
+  console.log(`[PLUGINS] Found ${files.length} files in ${PLUGINS_DIR}`)
+  
+  for (const file of files) {
+    const fullPath = path.join(PLUGINS_DIR, file)
+    try {
+      delete require.cache[require.resolve(fullPath)]
+      const plugin = require(fullPath)
+      plugins[file] = plugin
+      
+      let cmds = []
+      if (plugin.command) cmds = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
+      cmds.push(file.replace('.js','').toLowerCase())
+      const uniqueCmds = [...new Set(cmds.map(c => String(c).toLowerCase()))]
+      allCommands.push(...uniqueCmds)
+      
+      console.log(`[PLUGINS] ✓ Loaded ${file} -> [${uniqueCmds.join(', ')}]`)
+    } catch (e) {
+      console.log(`[PLUGINS] ✗ Failed ${file}: ${e.message}`)
+    }
+  }
+  console.log(`[PLUGINS] TOTAL LOADED: ${Object.keys(plugins).length} | TOTAL COMMANDS: ${allCommands.length}`)
+}
+
+// Load on start
+loadAllPlugins()
+
+// Auto reload every 5 mins + watch folder
+if (PLUGINS_DIR) {
+  fs.watch(PLUGINS_DIR, (event, filename) => {
+    if (filename && filename.endsWith('.js')) {
+      console.log(`[PLUGINS] File changed: ${filename}, reloading...`)
+      setTimeout(loadAllPlugins, 1000)
+    }
+  })
+}
+
+module.exports = async (conn, m) => {
+  try {
+    if (!m) return
+    if (m.key && m.key.remoteJid === 'status@broadcast') return
+    try { m = smsg(conn, m) } catch {}
+    if (!m.message) return
+
+    const from = m.key.remoteJid
+    const isGroup = from.endsWith('@g.us')
+    const sender = isGroup ? (m.key.participant || m.participant) : from
+    const pushname = m.pushName || 'User'
+
+    const body = m.mtype === 'conversation' ? m.message.conversation :
+                 m.mtype === 'extendedTextMessage' ? m.message.extendedTextMessage.text :
+                 m.mtype === 'imageMessage' ? m.message.imageMessage.caption || '' :
+                 m.mtype === 'videoMessage' ? m.message.videoMessage.caption || '' :
+                 m.message?.conversation || m.message?.extendedTextMessage?.text || ''
+
+    if (!body) return
+    const prefix = config.prefix || '.'
+    if (!body.startsWith(prefix)) return
+
+    const args = body.slice(prefix.length).trim().split(/ +/)
+    const command = args.shift().toLowerCase()
+    const text = args.join(' ')
+
+    // HOT RELOAD COMMAND - owner only
+    if (command === 'reload' || command === 'rplugins') {
+      const ownerNums = Array.isArray(config.ownerNumber) ? config.ownerNumber : [config.ownerNumber]
+      const isOwner = ownerNums.some(n => sender.includes(String(n).replace(/[^0-9]/g,'')))
+      if (!isOwner) return
+      loadAllPlugins()
+      await conn.sendMessage(from, { text: `✅ Reloaded ${Object.keys(plugins).length} plugins\n📁 ${PLUGINS_DIR}\n\nCommands: ${allCommands.slice(0,30).join(', ')}...` }, { quoted: m })
+      return
+    }
+
+    // CORE - ping, alive, owner, uptime
+    if (['p','ping'].includes(command)) {
+      await conn.sendMessage(from, { text: `⚡ Pong! ${Date.now() - (m.messageTimestamp*1000)}ms\n🤖 BREAKER-ULTRA MD\n👤 ${pushname}` }, { quoted: m })
+      return
+    }
+    if (command === 'alive') {
+      await conn.sendMessage(from, { text: `✅ BREAKER-ULTRA MD is Online\nVersion: ${config.version}\nMode: ${config.mode}\nUptime: ${Math.floor(process.uptime()/60)}m\nPlugins: ${Object.keys(plugins).length}` }, { quoted: m })
+      return
+    }
+
+    // FIND AND EXECUTE PLUGIN
+    let found = false
+    for (const file in plugins) {
+      const plugin = plugins[file]
+      if (!plugin) continue
+      let pluginCmds = []
+      if (plugin.command) pluginCmds = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
+      pluginCmds.push(file.replace('.js','').toLowerCase())
+      pluginCmds = pluginCmds.map(c => String(c).toLowerCase())
+      
+      if (pluginCmds.includes(command)) {
+        found = true
+        console.log(`[EXEC] ${command} -> ${file} by ${pushname}`)
+        try {
+          if (plugin.execute) await plugin.execute(conn, m, args, { config, text, command, sender, pushname, from, isGroup, plugins })
+          else if (typeof plugin === 'function') await plugin(conn, m, args, { config, text, command })
+        } catch (e) {
+          console.log(`[EXEC ERROR] ${file}: ${e.message}`)
+          await conn.sendMessage(from, { text: `❌ Error in ${file}: ${e.message}` }, { quoted: m })
+        }
+        break
+      }
+    }
+
+    if (!found) {
+      console.log(`[NO CMD] ${command} not found. Available: ${allCommands.slice(0,20).join(', ')}`)
+    }
+
+  } catch (e) {
+    console.log('Error in mains.js:', e.message, e.stack)
+  }
+}
