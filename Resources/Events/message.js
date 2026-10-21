@@ -14,20 +14,32 @@ config.mode = config.mode || 'public'
 config.version = config.version || '2.7.0'
 
 let smsg = (conn, m) => m
-try { const lib = require('../Functions/myfunc'); if (lib.smsg) smsg = lib.smsg } catch {
-  try { const lib2 = require('../Lib/myfunc'); if (lib2.smsg) smsg = lib2.smsg } catch {}
-}
+try { const lib = require('../Functions/myfunc'); if (lib.smsg) smsg = lib.smsg } catch {}
+try { const lib2 = require('../Lib/myfunc'); if (lib2.smsg) smsg = lib2.smsg } catch {}
 
 const PluginsPath = path.join(__dirname, '../../Plugins')
 
-function getPlugins() {
-  if (!fs.existsSync(PluginsPath)) return []
-  return fs.readdirSync(PluginsPath).filter(f => f.endsWith('.js'))
+// FIX 1: Load plugins ONCE at startup - not every message (this was killing bot)
+let pluginsCache = {}
+function loadPlugins() {
+  pluginsCache = {}
+  if (!fs.existsSync(PluginsPath)) return
+  const files = fs.readdirSync(PluginsPath).filter(f => f.endsWith('.js'))
+  for (const file of files) {
+    try {
+      const full = path.join(PluginsPath, file)
+      delete require.cache[require.resolve(full)]
+      pluginsCache[file] = require(full)
+    } catch {}
+  }
+  console.log(`[PLUGINS] Loaded ${Object.keys(pluginsCache).length} plugins`)
 }
+loadPlugins()
 
 module.exports = async (conn, m) => {
   try {
     if (!m) return
+    if (m.key && m.key.remoteJid === 'status@broadcast') return // ignore status
     try { m = smsg(conn, m) } catch {}
     if (!m.message) return
 
@@ -38,22 +50,21 @@ module.exports = async (conn, m) => {
 
     const body = m.mtype === 'conversation' ? m.message.conversation :
                  m.mtype === 'extendedTextMessage' ? m.message.extendedTextMessage.text :
-                 m.mtype === 'imageMessage' ? m.message.imageMessage.caption :
-                 m.mtype === 'videoMessage' ? m.message.videoMessage.caption :
+                 m.mtype === 'imageMessage' ? m.message.imageMessage.caption || '' :
+                 m.mtype === 'videoMessage' ? m.message.videoMessage.caption || '' :
                  m.message?.conversation || m.message?.extendedTextMessage?.text || ''
 
     if (!body) return
-
     const prefix = config.prefix || '.'
     if (!body.startsWith(prefix)) return
 
     const args = body.slice(prefix.length).trim().split(/ +/)
     const command = args.shift().toLowerCase()
     const text = args.join(' ')
-    
-    console.log(`[CMD] ${pushname}: ${prefix}${command} ${text.slice(0,20)}`)
 
-    // BUILT-IN COMMANDS - always work even if plugins fail
+    console.log(`[CMD] ${pushname}: ${prefix}${command}`)
+
+    // FIX 2: ONLY ping/alive/owner here - LET Plugins/menu.js HANDLE MENU
     switch (command) {
       case 'p':
       case 'ping':
@@ -63,14 +74,6 @@ module.exports = async (conn, m) => {
         }, { quoted: m })
         return
       }
-      case 'menu':
-      case 'help': {
-        const files = getPlugins()
-        let list = files.map(f => `• ${prefix}${f.replace('.js','')}`).join('\n')
-        let menu = `╔════════════════════╗\n║ ⚡ *BREAKER-ULTRA MD* ║\n╠════════════════════╣\n║ *Owner:* ${config.ownerName}\n║ *Prefix:* ${prefix}\n║ *Mode:* ${config.mode}\n║ *Version:* ${config.version}\n║ *Plugins:* ${files.length}\n╚════════════════════╝\n\n*ALL COMMANDS:*\n${list}\n\n_Type ${prefix}ping to check_`
-        await conn.sendMessage(from, { text: menu }, { quoted: m })
-        return
-      }
       case 'owner': {
         const num = Array.isArray(config.ownerNumber) ? config.ownerNumber[0] : config.ownerNumber
         await conn.sendMessage(from, { text: `👑 Owner: ${config.ownerName}\n📞 Number: ${num}` }, { quoted: m })
@@ -78,44 +81,12 @@ module.exports = async (conn, m) => {
       }
     }
 
-    // PLUGIN LOADER - FIXED
-    const files = getPlugins()
-    for (const file of files) {
+    // PLUGIN LOADER - uses cache, no delete
+    for (const file in pluginsCache) {
       try {
-        const full = path.join(PluginsPath, file)
-        delete require.cache[require.resolve(full)]
-        const plugin = require(full)
-        
+        const plugin = pluginsCache[file]
         if (!plugin) continue
-        
-        // Get all command names for this plugin
+
         let pluginCommands = []
         if (plugin.command) {
-          pluginCommands = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
-          pluginCommands = pluginCommands.map(c => String(c).toLowerCase())
-        }
-        const fileNameAsCmd = file.replace('.js','').toLowerCase()
-        pluginCommands.push(fileNameAsCmd)
-
-        // Check if this plugin matches
-        if (!pluginCommands.includes(command)) continue
-
-        // Execute
-        if (plugin.execute) {
-          await plugin.execute(conn, m, args, { config, text, command, sender, pushname })
-          return // Stop after first match
-        }
-        if (typeof plugin === 'function') {
-          await plugin(conn, m, args, { config, text, command })
-          return
-        }
-
-      } catch (e) {
-        console.log(`[PLUGIN ERROR] ${file}: ${e.message}`)
-      }
-    }
-
-  } catch (e) {
-    console.log('Error in messages.js:', e.message, e.stack)
-  }
-          }
+          pluginCommands = Array
