@@ -47,13 +47,20 @@ global.MEGAN_TMR = async (prompt) => {
 
 console.log("✅ MEGAN API LOADED:", MEGAN_BASE);
 
-// === REAL BOT SOCKET START ===
+// Load config for fallback
+let config = {}
+try { config = require('../../settings') } catch { try { config = require('../../settings.js') } catch { config = {} } }
+config.prefix = config.prefix || '.'
+config.ownerName = config.ownerName || 'Matsken'
+config.ownerNumber = config.ownerNumber || ['256766800757']
+config.version = config.version || '2.7.0'
+
 async function startBot() {
     const sessionPath = path.join(__dirname, '../../session');
     if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    
+
     const sock = makeWASocket({
         auth: {
             creds: state.creds,
@@ -67,47 +74,4 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === 'close') {
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Connection closed, reconnecting:', shouldReconnect);
-            if (shouldReconnect) startBot();
-        } else if (connection === 'open') {
-            console.log('✅ BOT CONNECTED & ONLINE');
-        }
-    });
-
-    // THIS IS WHAT WAS MISSING - LISTEN FOR MESSAGES
-    sock.ev.on('messages.upsert', async (m) => {
-        try {
-            const msg = m.messages[0];
-            if (!msg.message) return;
-            if (msg.key.remoteJid === 'status@broadcast') return;
-            
-            // Call your main handler
-            const mainsPath = path.join(__dirname, '../functions/mains.js');
-            if (fs.existsSync(mainsPath)) {
-                const mains = require(mainsPath);
-                // Support both function export and default export
-                if (typeof mains === 'function') {
-                    await mains(sock, msg);
-                } else if (mains.mains || mains.default) {
-                    await (mains.mains || mains.default)(sock, msg);
-                }
-            } else {
-                console.log("⚠️ mains.js not found at:", mainsPath);
-            }
-        } catch (err) {
-            console.log("Message Error:", err.message);
-        }
-    });
-
-    return sock;
-}
-
-module.exports = { startBot };
-
-if (require.main === module) {
-    startBot();
-  }
+    sock.ev.on('connection.update
