@@ -1,15 +1,12 @@
-require('../Functions/mains.js')
-require('../Socket/index.js')
+// Safe requires - don't crash if missing
+try { require('../Functions/mains.js') } catch {}
+try { require('../Socket/index.js') } catch {}
 
 const fs = require('fs')
 const path = require('path')
 
 let config = {}
-try {
-  config = require('../../settings')
-} catch {
-  try { config = require('../../settings.js') } catch { config = {} }
-}
+try { config = require('../../settings') } catch { try { config = require('../../settings.js') } catch { config = {} } }
 config.prefix = config.prefix || '.'
 config.ownerName = config.ownerName || 'Matsken'
 config.ownerNumber = config.ownerNumber || ['256']
@@ -17,17 +14,11 @@ config.mode = config.mode || 'public'
 config.version = config.version || '2.7.0'
 
 let smsg = (conn, m) => m
-try {
-  const lib = require('../Functions/myfunc')
-  if (lib.smsg) smsg = lib.smsg
-} catch {
-  try {
-    const lib2 = require('../Lib/myfunc')
-    if (lib2.smsg) smsg = lib2.smsg
-  } catch {}
+try { const lib = require('../Functions/myfunc'); if (lib.smsg) smsg = lib.smsg } catch {
+  try { const lib2 = require('../Lib/myfunc'); if (lib2.smsg) smsg = lib2.smsg } catch {}
 }
 
-const PluginsPath = path.join(__dirname, '../Plugins')
+const PluginsPath = path.join(__dirname, '../../Plugins')
 
 function getPlugins() {
   if (!fs.existsSync(PluginsPath)) return []
@@ -59,11 +50,10 @@ module.exports = async (conn, m) => {
     const args = body.slice(prefix.length).trim().split(/ +/)
     const command = args.shift().toLowerCase()
     const text = args.join(' ')
-    const senderNum = sender.split('@')[0]
-    const isOwner = (Array.isArray(config.ownerNumber) ? config.ownerNumber.includes(senderNum) : false) || m.key.fromMe
+    
+    console.log(`[CMD] ${pushname}: ${prefix}${command} ${text.slice(0,20)}`)
 
-    console.log(`[CMD] ${pushname}: ${prefix}${command}`)
-
+    // BUILT-IN COMMANDS - always work even if plugins fail
     switch (command) {
       case 'p':
       case 'ping':
@@ -71,81 +61,61 @@ module.exports = async (conn, m) => {
         await conn.sendMessage(from, { 
           text: `⚡ *BREAKER-ULTRA MD*\n\n✅ Online\n⏱️ ${new Date().toLocaleString('en-GB', { timeZone: 'Africa/Nairobi' })} EAT\n👤 ${pushname}\n🏠 ${process.env.RENDER ? 'Render' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Panel'}\n\n_Mode: ${config.mode}_` 
         }, { quoted: m })
-        break
+        return
       }
-
       case 'menu':
       case 'help': {
         const files = getPlugins()
         let list = files.map(f => `• ${prefix}${f.replace('.js','')}`).join('\n')
-        let menu = `╔════════════════════╗
-║ ⚡ *BREAKER-ULTRA MD* ║
-╠════════════════════╣
-║ *Owner:* ${config.ownerName}
-║ *Prefix:* ${prefix}
-║ *Mode:* ${config.mode}
-║ *Version:* ${config.version}
-║ *Plugins:* ${files.length}
-╚════════════════════╝
-
-*ALL COMMANDS:*
-${list}
-
-_Type ${prefix}ping to check_`
+        let menu = `╔════════════════════╗\n║ ⚡ *BREAKER-ULTRA MD* ║\n╠════════════════════╣\n║ *Owner:* ${config.ownerName}\n║ *Prefix:* ${prefix}\n║ *Mode:* ${config.mode}\n║ *Version:* ${config.version}\n║ *Plugins:* ${files.length}\n╚════════════════════╝\n\n*ALL COMMANDS:*\n${list}\n\n_Type ${prefix}ping to check_`
         await conn.sendMessage(from, { text: menu }, { quoted: m })
-        break
+        return
       }
-
       case 'owner': {
         const num = Array.isArray(config.ownerNumber) ? config.ownerNumber[0] : config.ownerNumber
         await conn.sendMessage(from, { text: `👑 Owner: ${config.ownerName}\n📞 Number: ${num}` }, { quoted: m })
-        break
+        return
       }
+    }
 
-      default: {
-        const files = getPlugins()
-        for (const file of files) {
-          try {
-            const full = path.join(PluginsPath, file)
-            delete require.cache[require.resolve(full)]
-            const plugin = require(full)
-            
-            const cmdName = file.replace('.js','').toLowerCase()
-            
-            if (plugin.command) {
-              const cmds = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
-              if (!cmds.map(c => c.toLowerCase()).includes(command) && cmdName !== command) continue
-              if (plugin.execute) {
-                await plugin.execute(conn, m, args, { config, text, command, sender, pushname })
-                return
-              }
-              if (typeof plugin === 'function') {
-                await plugin(conn, m, args)
-                return
-              }
-            }
-            
-            if (typeof plugin === 'function') {
-              if (cmdName === command) {
-                await plugin(conn, m, config, { text, args })
-                return
-              }
-            }
-            
-            if (plugin.execute && cmdName === command) {
-              await plugin.execute(conn, m, args, { config, text, command })
-              return
-            }
-            
-          } catch (e) {
-            console.log(`[PLUGIN ERROR] ${file}: ${e.message}`)
-          }
+    // PLUGIN LOADER - FIXED
+    const files = getPlugins()
+    for (const file of files) {
+      try {
+        const full = path.join(PluginsPath, file)
+        delete require.cache[require.resolve(full)]
+        const plugin = require(full)
+        
+        if (!plugin) continue
+        
+        // Get all command names for this plugin
+        let pluginCommands = []
+        if (plugin.command) {
+          pluginCommands = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
+          pluginCommands = pluginCommands.map(c => String(c).toLowerCase())
         }
-        break
+        const fileNameAsCmd = file.replace('.js','').toLowerCase()
+        pluginCommands.push(fileNameAsCmd)
+
+        // Check if this plugin matches
+        if (!pluginCommands.includes(command)) continue
+
+        // Execute
+        if (plugin.execute) {
+          await plugin.execute(conn, m, args, { config, text, command, sender, pushname })
+          return // Stop after first match
+        }
+        if (typeof plugin === 'function') {
+          await plugin(conn, m, args, { config, text, command })
+          return
+        }
+
+      } catch (e) {
+        console.log(`[PLUGIN ERROR] ${file}: ${e.message}`)
       }
     }
 
   } catch (e) {
-    console.log('Error in messages.js:', e.message)
+    console.log('Error in messages.js:', e.message, e.stack)
   }
-}
+          }
