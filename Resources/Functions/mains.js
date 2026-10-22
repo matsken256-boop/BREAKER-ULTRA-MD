@@ -87,8 +87,6 @@ async function startBot() {
   })
 }
 
-startBot()
-
-// Anti-crash
-process.on('uncaughtException', (e) => console.log('Uncaught:', e))
-process.on('unhandledRejection', (e) => console.log('Unhandled:', e))
+module.exports = mainsHandler
+module.exports.mainsHandler = mainsHandler
+module.exports.default = mainsHandler
