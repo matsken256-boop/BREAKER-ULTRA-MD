@@ -1,0 +1,32 @@
+// Breaker-Ultra MD - resources/functions/mainsHandler.js
+// Clean - no axios steal, no obfuscation
+
+async function mainsHandler(sock, m) {
+  try {
+    if (!m.messages) return
+    const msg = m.messages[0]
+    if (!msg.message) return
+    if (msg.key.remoteJid === 'status@broadcast') return
+
+    const from = msg.key.remoteJid
+    const type = Object.keys(msg.message)[0]
+    const body = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || ""
+
+    // Log like your screenshot wants
+    console.log(`[${new Date().toLocaleTimeString()}] Msg: ${body.slice(0,30)} from ${from}`)
+
+    if (body.startsWith('.')) {
+      const cmd = body.slice(1).split(' ')[0].toLowerCase()
+      if (cmd === 'ping') {
+        await sock.sendMessage(from, { text: '✅ Breaker-Ultra MD Active\nPing: 0.0s' }, { quoted: msg })
+      }
+    }
+
+  } catch (e) {
+    console.log('Msg error', e.message)
+  }
+}
+
+module.exports = mainsHandler
+module.exports.mainsHandler = mainsHandler
+module.exports.default = mainsHandler
