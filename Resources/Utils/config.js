@@ -1,23 +1,25 @@
 module.exports = {
   // === BOT INFO ===
   botName: "BREAKER-ULTRA MD",
-  ownerName: "BREAKER",
-  ownerNumber: ["2567XXXXXXXX"], // <--- PUT YOUR NUMBER HERE e.g 256765123456
-  
-  // === SETTINGS - THIS FIXES NO-REPLY ===
-  prefix: [".", "!", "/"], // bot will now reply to .menu !menu /menu
-  mode: "public", // <--- IMPORTANT: public = everyone can use, private = only you
+  ownerName: "Matsken",
+  ownerNumber: ["256760000000"], // Replace with real number OR keep but welcome will go to self
+  // If you want fully public with no number, leave as is, bot will send welcome to self
+
+  // === SETTINGS - FIXED FOR YOUR STRUCTURE ===
+  prefix: ".", // MUST be string for your mains.js, not array. Your bot will reply to .menu
+  prefixes: [".", "!", "/"], // extra prefixes if you want ! and / also work
+  mode: "public",
   public: true,
   pmblock: false,
 
-  // === API KEYS - KEPT YOURS ===
+  // === API KEYS - YOURS KEPT ===
   apis: {
     megan: "https://megan-api.vercel.app"
   },
   apikeys: {
     megan: "megan_fc148d34fe9b3a2"
   },
-  
+
   // === OTHER NEEDED ===
   sessionName: "session",
   author: "BREAKER-ULTRA MD",
@@ -27,5 +29,8 @@ module.exports = {
   autoStatusView: false,
 };
 
-global.MEGAN_APIKEY = "megan_fc148d34fe9b3a2";
-global.MEGAN_BASE = "https://megan-api.vercel.app";
+// SAFE GLOBAL - won't crash if config fails
+try {
+  global.MEGAN_APIKEY = module.exports.apikeys.megan || "megan_fc148d34fe9b3a2";
+  global.MEGAN_BASE = module.exports.apis.megan || "https://megan-api.vercel.app";
+} catch {}
