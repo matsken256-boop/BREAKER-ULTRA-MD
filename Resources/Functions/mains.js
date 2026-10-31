@@ -106,7 +106,6 @@ Type *${config.prefix}menu* to see all commands`;
       let menu = `⚡ ${config.botName} v${config.version} ⚡
 
 👤 *Username* : ${pushname}
-📞 *Number* : ${userNumber}
 🤖 *Bot Name* : BREAKER
 👑 *Owner* : ${config.ownerName}
 🔠 *Prefix* : ${prefix}
