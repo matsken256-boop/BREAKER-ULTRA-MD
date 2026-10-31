@@ -3,154 +3,128 @@ const path = require('path')
 
 const PLUGINS_DIR = path.join(__dirname, '../Plugins')
 const ROOT_DIR = path.join(__dirname, '../../')
-const BOT_NAME = "BREAKER-ULTRA MD"
-const OWNER_NAME = "Matsken"
-const PREFIXES = [".", "!", "/"]
+
+const config = {
+  botName: "BREAKER-ULTRA MD",
+  ownerName: "Matsken",
+  prefix: ".",
+  version: "2.7.0",
+  mode: "public"
+}
 
 function findLogo() {
   try {
     const files = fs.readdirSync(ROOT_DIR)
     for (const f of files) {
       const l = f.toLowerCase()
-      if ((l.includes('logo') || l.includes('breaker') || l.includes('thumb') || l.includes('beauty')) && (l.endsWith('.jpg') || l.endsWith('.png') || l.endsWith('.jpeg'))) {
+      if ((l.includes('logo') || l.includes('breaker') || l.includes('beauty')) && (l.endsWith('.jpg') || l.endsWith('.png') || l.endsWith('.jpeg'))) {
         return path.join(ROOT_DIR, f)
       }
     }
-    for (const f of files) { if (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.png')) return path.join(ROOT_DIR, f) }
   } catch {}
   return null
 }
 
-let pluginsLoader = null
-try {
-  const pPath = path.join(__dirname, 'plugins.js')
-  if (fs.existsSync(pPath)) pluginsLoader = require('./plugins.js')
-} catch {}
+function getPlatform() {
+  try { return require('os').platform() } catch { return 'linux' }
+}
 
 module.exports = async (sock, msg, extra) => {
   try {
-    // 1. WELCOME - TEXT ONLY, NO LOGO (as you wanted)
+    // 1. WELCOME - TEXT ONLY - EXACT LIKE YOUR connection.js SCREENSHOT
     if (!msg) {
       try {
-        const selfJid = sock.user.id
-        const dt = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Nairobi' })
-        const welcomeMsg = `┌──『 ${BOT_NAME} 』──
-│ Bot: ${BOT_NAME}
-│ Owner: ${OWNER_NAME}
-│ Prefix: [ . / ]
-│ Mode: public ✅
-│ Date: ${dt}
-│ GitHub: github.com/matsken256-boop
-│ Telegram: @Matsken1
-└----------------
+        const botNameFromWA = sock.user.name || config.botName
+        const platform = getPlatform()
+        const dateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' EAT'
+        const welcomeMsg = `┌──『 ${config.botName.toUpperCase()} 』──
+» *Name:* ${botNameFromWA}
+» *Owner:* ${config.ownerName}
+» *Platform:* ${platform}
+» *Prefix:* [ ${config.prefix} ]
+» *Mode:* public ✅
+» *Version:* ${config.version}
+» *Date & Time:* ${dateTime}
+»
+» https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
+» https://t.me/Matsken1
+» https://github.com/matsken256-boop
 
-Type .menu`
 
-        // NO IMAGE HERE - TEXT ONLY
-        await sock.sendMessage(selfJid, { text: welcomeMsg })
-        console.log('[mains.js] Welcome TEXT sent (no logo)')
+Hello! I am *${config.botName}*, ready for everyone.
+
+Type *${config.prefix}menu* to see all commands`;
+        await sock.sendMessage(sock.user.id, { text: welcomeMsg })
       } catch (e) {}
       return
     }
 
     if (!msg.message) return
     const from = msg.key.remoteJid
-    const pushName = msg.pushName || 'User'
+    const pushname = msg.pushName || 'Beauty'
+    const userNumber = from.split('@')[0]
     let body = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || msg.message.videoMessage?.caption || msg.message.ephemeralMessage?.message?.extendedTextMessage?.text || ''
     if (!body) return
-    if (!PREFIXES.some(p => body.startsWith(p))) return
-    
-    const usedPrefix = PREFIXES.find(p => body.startsWith(p))
-    const args = body.slice(usedPrefix.length).trim().split(/ +/)
+    if (![".", "!", "/"].some(p => body.startsWith(p))) return
+    const prefix = body[0]
+    const args = body.slice(1).trim().split(/ +/)
     const command = args.shift()?.toLowerCase()
     if (!command) return
-    console.log(`[CMD] ${usedPrefix}${command}`)
 
-    // 2. SPECIAL HANDLERS - MENU WITH LOGO, PING FIXED
-
-    if (command === 'menu' || command === 'help') {
-      let txt = `*${BOT_NAME}*\nHello *${pushName}* 👋\n\n╭─『 INFO 』\n│ Owner: ${OWNER_NAME}\n│ GitHub: matsken256-boop\n│ Telegram: @Matsken1\n│ Prefix: ${PREFIXES.join(' ')}\n╰────────────\n\n*COMMANDS:*\n`
+    // 2. LOAD YOUR REAL PLUGIN FILE FIRST - SO ping.js & menu.js WORK
+    const cmdFile = path.join(PLUGINS_DIR, `${command}.js`)
+    if (fs.existsSync(cmdFile)) {
       try {
-        if (fs.existsSync(PLUGINS_DIR)) {
-          const files = fs.readdirSync(PLUGINS_DIR).filter(f => f.endsWith('.js')).map(f => f.replace('.js','')).sort()
-          txt += files.map(c => `│ • ${usedPrefix}${c}`).join('\n')
-        }
-      } catch {}
-      txt += `\n\n*Powered by ${BOT_NAME}*`
-      
-      const logoPath = findLogo()
-      if (logoPath && fs.existsSync(logoPath)) {
-        await sock.sendMessage(from, { image: fs.readFileSync(logoPath), caption: txt }, { quoted: msg })
-        console.log('[mains.js] Menu WITH LOGO sent')
-      } else {
-        await sock.sendMessage(from, { text: txt }, { quoted: msg })
-      }
-      return
-    }
-
-    if (command === 'ping' || command === 'alive' || command === 'speed') {
-      // Try your real ping.js file first
-      const pingPaths = [
-        path.join(PLUGINS_DIR, 'ping.js'),
-        path.join(ROOT_DIR, 'Plugins/ping.js'),
-        path.join(__dirname, '../Plugins/ping.js')
-      ]
-      for (const pPath of pingPaths) {
-        if (fs.existsSync(pPath)) {
-          try {
-            delete require.cache[require.resolve(pPath)]
-            const pingPlugin = require(pPath)
-            if (typeof pingPlugin === 'function') {
-              await pingPlugin(sock, msg, args, from, { pushName })
-              return
-            }
-            if (pingPlugin.execute) {
-              await pingPlugin.execute(sock, msg, args, from)
-              return
-            }
-          } catch (e) { console.log('ping.js error', e.message) }
-        }
-      }
-      // Fallback if ping.js fails
-      const start = Date.now()
-      await sock.sendMessage(from, { text: `*Pong! ⚡*\nSpeed: ${Date.now() - start}ms\n${BOT_NAME} Active` }, { quoted: msg })
-      return
-    }
-
-    // 3. ALL OTHER PLUGINS - FETCH ALL FOLDER
-    try {
-      // Try plugins.js loader
-      if (pluginsLoader) {
-        if (typeof pluginsLoader === 'function') {
-          const done = await pluginsLoader(sock, msg, command, args, from, { pushName, prefix: usedPrefix })
-          if (done) return
-        }
-        if (pluginsLoader[command]) {
-          await pluginsLoader[command](sock, msg, args, from)
-          return
-        }
-      }
-      // Direct file fetch - TRY ALL CASES
-      const cmdFile = path.join(PLUGINS_DIR, `${command}.js`)
-      if (fs.existsSync(cmdFile)) {
         delete require.cache[require.resolve(cmdFile)]
         const plugin = require(cmdFile)
-        // Try all possible signatures your plugins might use
-        try {
-          if (typeof plugin === 'function') {
-            await plugin(sock, msg, args, from, { pushName, prefix: usedPrefix })
-          } else if (plugin.default) {
-            await plugin.default(sock, msg, args)
-          } else if (plugin.execute) {
-            await plugin.execute(sock, msg, args, from)
-          }
-        } catch (e) {
-          // Second try different signature
-          try { await plugin(msg, sock, args) } catch {}
+        if (typeof plugin === 'function') {
+          await plugin(sock, msg, args, from, { pushName: pushname, prefix })
+          return
         }
-        return
+        if (plugin.execute) {
+          await plugin.execute(sock, msg, args, from)
+          return
+        }
+      } catch (e) {
+        console.log(`${command}.js error:`, e.message)
       }
-    } catch (e) { console.log('[mains.js] plugin error', e.message) }
+    }
 
-  } catch (e) { console.log('[mains.js] Fatal', e.message) }
+    // 3. FALLBACKS
+    if (command === 'ping') {
+      await sock.sendMessage(from, { text: `*Pong! ⚡* ${config.botName} Active` }, { quoted: msg })
+      return
+    }
+
+    if (command === 'menu') {
+      const files = fs.existsSync(PLUGINS_DIR) ? fs.readdirSync(PLUGINS_DIR).filter(f => f.endsWith('.js')).map(f => f.replace('.js','')) : []
+      const ai = ['analyse','chatbot','deepseek','explaincode','gemini','generate','gpt','imagine','programming','summarise','teach','translate']
+      const aiExist = ai.filter(c => files.includes(c))
+      const uptime = `${Math.floor(process.uptime()/3600)}h ${Math.floor((process.uptime()%3600)/60)}m`
+      const date = new Date().toLocaleDateString()
+      const platform = getPlatform()
+      let menu = `⚡ ${config.botName} v${config.version} ⚡
+
+👤 *Username* : ${pushname}
+📞 *Number* : ${userNumber}
+🤖 *Bot Name* : BREAKER
+👑 *Owner* : ${config.ownerName}
+🔠 *Prefix* : ${prefix}
+👤 *Mode* : ${config.mode}
+🔋 *Uptime* : ${uptime}
+📅 *Date* : ${date}
+🖥️ *Platform*: ${platform}
+
+◇ ◇ AI MENU ◇
+`
+      for (const cmd of aiExist) menu += `│ 📩 ${cmd}\n`
+      const logoPath = findLogo()
+      if (logoPath && fs.existsSync(logoPath)) {
+        await sock.sendMessage(from, { image: fs.readFileSync(logoPath), caption: menu }, { quoted: msg })
+      } else {
+        await sock.sendMessage(from, { text: menu }, { quoted: msg })
+      }
+    }
+
+  } catch (e) { console.log('Fatal', e.message) }
 }
