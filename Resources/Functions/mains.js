@@ -29,14 +29,14 @@ module.exports = async (sock, msg) => {
         const dt = new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' EAT'
         const linkedName = sock.user?.name || OWNER
         const welcome = `┌─ ◇ ${BOT_NAME} ◇
-│ Username : ${linkedName}
-│ Owner : ${OWNER}
-│ Platform : ${s.plat}
-│ Host : ${s.host}
-│ Prefix : [ ${PREFIX} ]
-│ Mode : ${MODE}
-│ Version : v${VERSION}
-│ Date&Time : ${dt}
+│ *Username* : ${linkedName}
+│ *Owner* : ${OWNER}
+│ *Platform* : ${s.plat}
+│ *Host* : ${s.host}
+│ *Prefix* : [ ${PREFIX} ]
+│ *Mode* : ${MODE}
+│ *Version* : v${VERSION}
+│ *Date&Time* : ${dt}
 │ https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
 │ https://t.me/Matsken1
 │ https://github.com/matsken256-boop
