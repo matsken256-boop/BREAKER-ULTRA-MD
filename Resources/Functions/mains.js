@@ -94,7 +94,6 @@ Type *${PREFIX}menu* to see all commands`
       let menu = `⚡ BREAKER-ULTRA MD v${VERSION} ⚡
 ┌───────────────
 │ 👤 *Username* : ${pushName}
-│ 📱 *Number* : ${userNumber}
 │ 🤖 *Bot Name* : ${BOT_NAME}
 │ 👑 *Owner* : ${OWNER}
 │ 🔹 *Prefix* : ${prefix}
