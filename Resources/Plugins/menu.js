@@ -51,7 +51,6 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
 
   let menu = `┌─ ◇ ${BOT_NAME} ◇
 │ 👤 Username : ${pushName}
-│ 📱 Number : ${userNumber}
 │ 🤖 Bot Name : ${BOT_NAME}
 │ 👑 Owner : ${OWNER}
 │ 🔹 Prefix : [ ${prefix} ]
@@ -70,7 +69,7 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
   }
 
   menu += `└─
-Total: ${s.count} plugins - auto fetched`
+Total: ${s.count} plugins`
 
   const logoPath = findLogo()
   if(logoPath){
