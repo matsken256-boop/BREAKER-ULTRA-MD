@@ -22,6 +22,21 @@ function formatUptime(){
   return `${h}h ${m}m ${sec}s`
 }
 
+function findLogo(){
+  const root = path.join(__dirname, '..')
+  const possible = [
+    path.join(root, 'logo.jpg'),
+    path.join(root, 'logo.png'),
+    path.join(root, 'logo.jpeg'),
+    path.join(root, 'breaker.jpg'),
+    path.join(root, 'breaker.png')
+  ]
+  for(const p of possible){
+    if(fs.existsSync(p)) return p
+  }
+  return null
+}
+
 module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
   const s = getStats()
   const date = new Date().toLocaleDateString('en-GB')
@@ -34,27 +49,33 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
     files = files.filter(f => f !== 'menu')
   }catch{ files = [] }
 
-  let menu = `⚡ BREAKER-ULTRA MD v${VERSION} ⚡
-┌───────────────
-│ 👤 *Username* : ${pushName}
-│ 🤖 *Bot Name* : ${BOT_NAME}
-│ 👑 *Owner* : ${OWNER}
-│ 🔹 *Prefix* : ${prefix}
-│ 🔸 *Mode* : ${MODE}
-│ 🔋 *Uptime* : ${uptime}
-│ 📅 *Date* : ${date}
-│ 💻 *Platform*: ${s.plat}
-└───────────────
+  let menu = `┌─ ◇ ${BOT_NAME} ◇
+│ 👤 Username : ${pushName}
+│ 📱 Number : ${userNumber}
+│ 🤖 Bot Name : ${BOT_NAME}
+│ 👑 Owner : ${OWNER}
+│ 🔹 Prefix : [ ${prefix} ]
+│ 🔸 Mode : ${MODE}
+│ 🔋 Uptime : ${uptime}
+│ 📅 Date : ${date}
+│ 💻 Platform : ${s.plat}
+│ 📦 Plugins : ${s.count}
+└─
 
-◇ ALL COMMANDS ◇
+┌─ ◇ ALL COMMANDS ◇
 `
 
   for(const cmd of files){
-    menu += `│ 📥 ${cmd}\n`
+    menu += `│ ➡️ ${cmd}\n`
   }
 
-  menu += `└───────────────
+  menu += `└─
 Total: ${s.count} plugins - auto fetched`
 
-  await sock.sendMessage(from, {text: menu}, {quoted: msg})
+  const logoPath = findLogo()
+  if(logoPath){
+    await sock.sendMessage(from, {image: fs.readFileSync(logoPath), caption: menu}, {quoted: msg})
+  }else{
+    await sock.sendMessage(from, {text: menu}, {quoted: msg})
+  }
 }
