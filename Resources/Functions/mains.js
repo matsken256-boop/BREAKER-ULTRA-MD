@@ -29,7 +29,7 @@ module.exports = async (sock, msg) => {
         const dt = new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' EAT'
         const linkedName = sock.user?.name || OWNER
         const welcome = `
-┌──『⚡ ${BOT_NAME} ⚡』──
+┌──『⚡${BOT_NAME}⚡』──
 │ » Username: ${linkedName}
 │ » Owner: ${OWNER}
 │ » Platform: ${s.plat}
