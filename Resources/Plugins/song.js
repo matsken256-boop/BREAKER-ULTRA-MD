@@ -2,7 +2,7 @@ const yts = require('yt-search')
 const ytdl = require('@distube/ytdl-core')
 
 module.exports = async (sock, msg, args, from) => {
-  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Use: .song njagala sente master parrot\nNo link needed, just song name!"}, {quoted:msg})
+  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Use: .song faded-allan walker\nNo link needed, just song name!"}, {quoted:msg})
   const query = args.join(' ')
   try{
     const search = await yts(query)
