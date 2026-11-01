@@ -35,9 +35,11 @@ module.exports = async (sock, msg) => {
       try{
         const s = getStats()
         const dt = new Date().toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' EAT'
+        // Username = exact WhatsApp username of linked account
+        const linkedName = sock.user?.name || sock.user?.verifiedName || OWNER
         const welcome = `⚡ ${BOT_NAME} ⚡
 ┌──『 ${BOT_NAME} 』──
-│ » Username: ${BOT_NAME}
+│ » Username: ${linkedName}
 │ » Owner: ${OWNER}
 │ » Platform: ${s.plat}
 │ » Host: ${s.host}
@@ -47,6 +49,7 @@ module.exports = async (sock, msg) => {
 │ » Date & Time: ${dt}
 │ » https://whatsapp.com/channel/0029VbDoFXD8qIzjg285xu2h
 │ » https://t.me/Matsken1
+│ » https://github.com/matsken256-boop
 └──────────────────
 
 Type *${PREFIX}menu* to see all commands`
@@ -91,6 +94,7 @@ Type *${PREFIX}menu* to see all commands`
       let menu = `⚡ BREAKER-ULTRA MD v${VERSION} ⚡
 ┌───────────────
 │ 👤 *Username* : ${pushName}
+│ 📱 *Number* : ${userNumber}
 │ 🤖 *Bot Name* : ${BOT_NAME}
 │ 👑 *Owner* : ${OWNER}
 │ 🔹 *Prefix* : ${prefix}
@@ -100,7 +104,7 @@ Type *${PREFIX}menu* to see all commands`
 │ 💻 *Platform*: ${s.plat}
 └───────────────
 
-◇ ALL MENU ◇
+◇ ALL COMMANDS ◇
 `
 
       for(const cmd of files){
@@ -108,7 +112,7 @@ Type *${PREFIX}menu* to see all commands`
       }
 
       menu += `└───────────────
-Total: ${s.count} plugins`
+Total: ${s.count} plugins - auto fetched`
 
       await sock.sendMessage(from, {text: menu}, {quoted: msg})
     }
