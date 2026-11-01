@@ -1,45 +1,39 @@
-const axios = require('axios')
+const yts = require('yt-search')
+const ytdl = require('@distube/ytdl-core')
 
-module.exports = async (sock, msg, args, from, {pushName}) => {
-  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Usage: *.play <song name>*\n\nEx: .play calm down\n.play alan walker faded"}, {quoted:msg})
-
-  let query = args.join(' ')
+module.exports = async (sock, msg, args, from) => {
+  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Use: .play njagala sente master parrot"}, {quoted:msg})
+  const query = args.join(' ')
   try{
-    await sock.sendMessage(from,{text:`🎧 *Searching...* \n🔍 Query: ${query}\n👤 For: ${pushName}`}, {quoted:msg})
+    // Search YouTube
+    const search = await yts(query)
+    const video = search.videos[0]
+    if(!video) return await sock.sendMessage(from,{text:"❌ Not found on YouTube"}, {quoted:msg})
 
-    // Search YouTube then download
-    let search = await axios.get(`https://api.akuari.my.id/search/youtube?query=${encodeURIComponent(query)}`)
-    let video = search.data.result[0]
-    if(!video) throw new Error("No results")
+    await sock.sendMessage(from,{text:`🔍 *YouTube Search:* ${query}\nFound: ${video.title}`}, {quoted:msg})
 
-    let dl = await axios.get(`https://api.akuari.my.id/downloader/youtube?link=${video.link}`)
+    const info = await ytdl.getInfo(video.url)
+    const audio = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' })
 
-    // Send thumbnail + info
+    // SEND AUDIO LIKE SCREENSHOT BUT WITH YOUTUBE INFO (externalAdReply)
     await sock.sendMessage(from,{
-      image:{url:video.thumbnail},
-      caption:`┌─ ◇ PLAY ◇
-│ 🎵 Title: ${video.title}
-│ ⏱️ Duration: ${video.duration}
-│ 👀 Views: ${video.views}
-│ 🔗 Link: ${video.link}
-│ 👤 Requested by: ${pushName}
-└─
-⏳ *Downloading audio...*`
+      audio: { url: audio.url },
+      mimetype: 'audio/mpeg',
+      fileName: `${video.title}.mp3`,
+      contextInfo: {
+        externalAdReply: {
+          title: video.title,
+          body: `YouTube • ${video.timestamp} • ${video.views} views`,
+          thumbnailUrl: video.thumbnail,
+          sourceUrl: video.url,
+          mediaType: 1,
+          renderLargerThumbnail: true
+        }
+      }
     }, {quoted:msg})
-
-    // Send audio
-    await sock.sendMessage(from,{
-      audio:{url:dl.data.mp3},
-      mimetype:'audio/mpeg',
-      fileName: video.title+'.mp3',
-      ptt:false
-    }, {quoted:msg})
-
-    // Optional: also send video button
-    await sock.sendMessage(from,{text:`✅ Done! Want video? Type *.ytmp4 ${video.link}*`}, {quoted:msg})
 
   }catch(e){
     console.log(e)
-    await sock.sendMessage(from,{text:`❌ Error for "${query}": ${e.message}\nTry: .song ${query} or .ytmp3 <link>`}, {quoted:msg})
+    await sock.sendMessage(from,{text:`❌ Error: ${e.message}`}, {quoted:msg})
   }
 }
