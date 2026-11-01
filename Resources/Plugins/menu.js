@@ -50,15 +50,14 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
   }catch{ files = [] }
 
   let menu = `┌─ ◇ ${BOT_NAME} ◇
-│ 👤 Username : ${pushName}
-│ 🤖 Bot Name : ${BOT_NAME}
-│ 👑 Owner : ${OWNER}
-│ 🔹 Prefix : [ ${prefix} ]
-│ 🔸 Mode : ${MODE}
-│ 🔋 Uptime : ${uptime}
-│ 📅 Date : ${date}
-│ 💻 Platform : ${s.plat}
-│ 📦 Plugins : ${s.count}
+│ 👤 *Username* : ${pushName}
+│ 👑 *Owner* : ${OWNER}
+│ 🔹 *Prefix* : [ ${prefix} ]
+│ 🔸 *Mode* : ${MODE}
+│ 🔋 *Uptime* : ${uptime}
+│ 📅 *Date* : ${date}
+│ 💻 *Platform* : ${s.plat}
+│ 📦 *Plugins* : ${s.count}
 └─
 
 ┌─ ◇ ALL COMMANDS ◇
