@@ -2,7 +2,7 @@ const yts = require('yt-search')
 const ytdl = require('@distube/ytdl-core')
 
 module.exports = async (sock, msg, args, from) => {
-  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Use: .play njagala sente master parrot"}, {quoted:msg})
+  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Use: .play faded-allan walker"}, {quoted:msg})
   const query = args.join(' ')
   try{
     // Search YouTube
