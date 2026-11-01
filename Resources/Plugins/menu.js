@@ -23,21 +23,24 @@ function formatUptime(){
 }
 
 function findLogo(){
-  const root = path.join(__dirname, '..')
-  const possible = [
-    path.join(root, 'logo.jpg'),
-    path.join(root, 'logo.png'),
-    path.join(root, 'logo.jpeg'),
-    path.join(root, 'breaker.jpg'),
-    path.join(root, 'breaker.png')
+  const bases = [
+    path.join(__dirname, '..'),
+    process.cwd(),
+    '/home/container',
+    path.join(__dirname, '../..'),
+    __dirname
   ]
-  for(const p of possible){
-    if(fs.existsSync(p)) return p
+  const names = ['logo.jpg','logo.png','logo.jpeg','breaker.jpg','breaker.png','thumb.jpg']
+  for(const base of bases){
+    for(const name of names){
+      const p = path.join(base, name)
+      if(fs.existsSync(p)) return p
+    }
   }
   return null
 }
 
-module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
+module.exports = async (sock, msg, args, from, {pushName, prefix}) => {
   const s = getStats()
   const date = new Date().toLocaleDateString('en-GB')
   const uptime = formatUptime()
@@ -48,13 +51,13 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
     files = files.filter(f => f !== 'menu')
   }catch{ files = [] }
 
-  // CATEGORIES - AI FIRST!
-  const aiCmds = ["analyse","chatbot","deepseek","explaincode","gemini","gpt","ai","blackbox","dalle","imagine","perplexity","llama"]
-  const downloadCmds = ["tomp3","toaudio","tovideo","tosticker","vv","toviewonce","apk","download","facebook","fbaudio","gdrive","image","instagram","itunes","savestatus","song","spotify","tik-image","tiktok","tiktokaudio","twitter","video","xxxvideo","ytmp3","ytmp4","play"]
+  // ONLY TWO MENUS!
+  const aiCmds = ["analyse","chatbot","deepseek","explaincode","gemini","gpt","ai","blackbox","dalle","imagine","perplexity","llama","generate","programming","summarise","teach","translate","ping"]
+  const downloadCmds = ["tomp3","toaudio","tovideo","tosticker","vv","toviewonce","apk","download","facebook","fbaudio","gdrive","image","instagram","itunes","savestatus","song","spotify","tik-image","tiktok","tiktokaudio","twitter","video","xxxvideo","ytmp3","ytmp4","play","tiktokimage"]
 
   let ai = files.filter(f=>aiCmds.includes(f))
   let dl = files.filter(f=>downloadCmds.includes(f))
-  let other = files.filter(f=>!aiCmds.includes(f) && !downloadCmds.includes(f))
+  // REMOVED OTHER MENU - Everything else goes to AI if not download
 
   let menu = `┌─ ◇ ${BOT_NAME} ◇
 │ 👤 *Username* : ${pushName}
@@ -86,20 +89,17 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
     menu += `└─\n`
   }
 
-  // OTHER
-  if(other.length){
-    menu += `\n┌─ ◇ OTHER MENU ◇\n`
-    for(const cmd of other){
-      menu += `│ ➡️ ${cmd}\n`
-    }
-    menu += `└─\n`
-  }
-
   menu += `\nTotal: ${s.count} plugins`
 
   const logoPath = findLogo()
+  console.log("LOGO FOUND:", logoPath)
   if(logoPath){
-    await sock.sendMessage(from, {image: fs.readFileSync(logoPath), caption: menu}, {quoted: msg})
+    try{
+      await sock.sendMessage(from, {image: fs.readFileSync(logoPath), caption: menu}, {quoted: msg})
+    }catch(e){
+      console.log("LOGO SEND ERROR:", e)
+      await sock.sendMessage(from, {text: menu}, {quoted: msg})
+    }
   }else{
     await sock.sendMessage(from, {text: menu}, {quoted: msg})
   }
