@@ -41,13 +41,20 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
   const s = getStats()
   const date = new Date().toLocaleDateString('en-GB')
   const uptime = formatUptime()
-  const userNumber = from.split('@')[0]
 
   let files = []
   try{
     files = fs.readdirSync(PLUGINS_DIR).filter(f=>f.endsWith('.js')).map(f=>f.replace('.js','')).sort()
     files = files.filter(f => f !== 'menu')
   }catch{ files = [] }
+
+  // CATEGORIES - AI FIRST!
+  const aiCmds = ["analyse","chatbot","deepseek","explaincode","gemini","gpt","ai","blackbox","dalle","imagine","perplexity","llama"]
+  const downloadCmds = ["tomp3","toaudio","tovideo","tosticker","vv","toviewonce","apk","download","facebook","fbaudio","gdrive","image","instagram","itunes","savestatus","song","spotify","tik-image","tiktok","tiktokaudio","twitter","video","xxxvideo","ytmp3","ytmp4","play"]
+
+  let ai = files.filter(f=>aiCmds.includes(f))
+  let dl = files.filter(f=>downloadCmds.includes(f))
+  let other = files.filter(f=>!aiCmds.includes(f) && !downloadCmds.includes(f))
 
   let menu = `┌─ ◇ ${BOT_NAME} ◇
 │ 👤 *Username* : ${pushName}
@@ -59,16 +66,36 @@ module.exports = async (sock, msg, args, from, {pushName, prefix, command}) => {
 │ 💻 *Platform* : ${s.plat}
 │ 📦 *Plugins* : ${s.count}
 └─
-
-┌─ ◇ ALL COMMANDS ◇
 `
 
-  for(const cmd of files){
-    menu += `│ ➡️ ${cmd}\n`
+  // AI MENU FIRST!
+  if(ai.length){
+    menu += `\n┌─ ◇ AI MENU ◇\n`
+    for(const cmd of ai){
+      menu += `│ ➡️ ${cmd}\n`
+    }
+    menu += `└─\n`
   }
 
-  menu += `└─
-Total: ${s.count} plugins`
+  // DOWNLOAD MENU SECOND!
+  if(dl.length){
+    menu += `\n┌─ ◇ DOWNLOAD MENU ◇\n`
+    for(const cmd of dl){
+      menu += `│ ➡️ ${cmd}\n`
+    }
+    menu += `└─\n`
+  }
+
+  // OTHER
+  if(other.length){
+    menu += `\n┌─ ◇ OTHER MENU ◇\n`
+    for(const cmd of other){
+      menu += `│ ➡️ ${cmd}\n`
+    }
+    menu += `└─\n`
+  }
+
+  menu += `\nTotal: ${s.count} plugins`
 
   const logoPath = findLogo()
   if(logoPath){
