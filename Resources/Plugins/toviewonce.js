@@ -1,32 +1,51 @@
 module.exports = async (sock, msg, args, from) => {
   try {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
-    if (!quoted) return sock.sendMessage(from, { text: "❌ Reply to a ViewOnce!" }, { quoted: msg })
+    // Get quoted message (the normal photo/video you want to turn to ViewOnce)
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+    const quotedMessage = contextInfo?.quotedMessage
+    
+    if (!quotedMessage) {
+      return await sock.sendMessage(from, { 
+        text: "❌ *Reply to a Photo/Video!*\n\nExample:\n1. Send a photo\n2. Reply to it with *.toviewonce*" 
+      }, { quoted: msg })
+    }
 
-    let viewOnce = quoted.viewOnceMessage || quoted.viewOnceMessageV2 || quoted.viewOnceMessageV2Extension
-    if (!viewOnce) viewOnce = quoted
-    if (viewOnce?.message) viewOnce = viewOnce.message
+    const quotedType = Object.keys(quotedMessage)[0]
+    
+    // Check if it's image or video
+    if (quotedType === 'imageMessage') {
+      const imageMessage = quotedMessage.imageMessage
+      
+      // Download image
+      await sock.sendMessage(from, { text: "🔄 Converting to ViewOnce..." }, { quoted: msg })
+      
+      await sock.sendMessage(from, {
+        image: imageMessage,
+        caption: imageMessage.caption || "",
+        viewOnce: true
+      }, { quoted: msg })
 
-    // Extract actual media
-    const type = Object.keys(viewOnce)[0]
-    const media = viewOnce[type]
+    } else if (quotedType === 'videoMessage') {
+      const videoMessage = quotedMessage.videoMessage
+      
+      await sock.sendMessage(from, { text: "🔄 Converting to ViewOnce..." }, { quoted: msg })
+      
+      await sock.sendMessage(from, {
+        video: videoMessage,
+        caption: videoMessage.caption || "",
+        viewOnce: true
+      }, { quoted: msg })
 
-    if (!media) return sock.sendMessage(from, { text: "❌ No ViewOnce found!" }, { quoted: msg })
-
-    await sock.sendMessage(from, { text: "🔓 Converting ViewOnce..." }, { quoted: msg })
-
-    // Send back as normal (not view once)
-    if (type === 'imageMessage') {
-      await sock.sendMessage(from, { image: media, caption: media.caption || "" }, { quoted: msg })
-    } else if (type === 'videoMessage') {
-      await sock.sendMessage(from, { video: media, caption: media.caption || "", viewOnce: false }, { quoted: msg })
-    } else if (type === 'audioMessage') {
-      await sock.sendMessage(from, { audio: media, mimetype: 'audio/mp4' }, { quoted: msg })
     } else {
-      await sock.sendMessage(from, { text: "✅ ViewOnce opened!" }, { quoted: msg })
+      return await sock.sendMessage(from, { 
+        text: "❌ Only Photo/Video can be converted to ViewOnce!" 
+      }, { quoted: msg })
     }
 
   } catch (e) {
-    await sock.sendMessage(from, { text: `❌ Error: ${e.message}` }, { quoted: msg })
+    console.log("toviewonce error:", e.message)
+    await sock.sendMessage(from, { 
+      text: `❌ Error: ${e.message}` 
+    }, { quoted: msg })
   }
 }
