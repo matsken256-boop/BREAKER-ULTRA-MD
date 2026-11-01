@@ -14,8 +14,6 @@ module.exports = async (sock, msg, args, from) => {
 
     const info = await ytdl.getInfo(video.url)
     const audio = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' })
-
-    // SEND AUDIO LIKE SCREENSHOT BUT WITH YOUTUBE INFO (externalAdReply)
     await sock.sendMessage(from,{
       audio: { url: audio.url },
       mimetype: 'audio/mpeg',
