@@ -53,22 +53,63 @@ Type *${PREFIX}menu* to see all commands`
     const from = msg.key.remoteJid
     const sender = msg.key.participant || from
     const pushName = msg.pushName || from.split('@')[0]
-    
-    // GET MESSAGE CONTENT FOR LOGGER
-    let body = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || msg.message.videoMessage?.caption || msg.message.reactionMessage?.text || msg.message.stickerMessage ? "Sticker" : ""
-    if(!body) body = Object.keys(msg.message)[0] || "N/A"
-    
-    // ===== BEAUTIFUL CYPHER-X STYLE CONSOLE LOGGER =====
+
+    let body = ""
+    let mtype = "unknown"
+    try {
+      // Get real message, unwrap new Baileys 6.7.19 senderKeyDistributionMessage
+      let messageContent = msg.message
+      mtype = Object.keys(messageContent)[0] || "unknown"
+      
+      if (messageContent.senderKeyDistributionMessage) {
+        // New WhatsApp encryption wrapper - extract inner
+        const inner = messageContent.senderKeyDistributionMessage.groupMessage || 
+                      messageContent.senderKeyDistributionMessage.axolotlSenderKeyDistributionMessage
+        if (inner) {
+          messageContent = inner
+          mtype = Object.keys(messageContent)[0] || mtype
+        }
+      }
+      
+      // Also handle ephemeralMessage wrapper
+      if (messageContent.ephemeralMessage) {
+        messageContent = messageContent.ephemeralMessage.message
+        mtype = Object.keys(messageContent)[0] || mtype
+      }
+      
+      // Also handle viewOnceMessage wrapper
+      if (messageContent.viewOnceMessage) {
+        messageContent = messageContent.viewOnceMessage.message
+        mtype = Object.keys(messageContent)[0] || mtype
+      }
+
+      body = messageContent.conversation || 
+             messageContent.extendedTextMessage?.text || 
+             messageContent.imageMessage?.caption || 
+             messageContent.videoMessage?.caption || 
+             messageContent.reactionMessage?.text || 
+             ""
+
+      // Only mark as Sticker if truly sticker and no text
+      if (!body && messageContent.stickerMessage) {
+        body = "Sticker"
+        mtype = "stickerMessage"
+      }
+      
+      if (!body) body = ""
+    } catch (e) {
+      body = ""
+      mtype = "error"
+    }
+
     try{
       const start = Date.now()
-      const mtype = Object.keys(msg.message)[0]
       const time = moment.tz('Africa/Kampala').format('dddd, HH:mm:ss')
       const speed = ((Date.now() - start)/1000).toFixed(3)
       let speedTag = "FAST"
       if(parseFloat(speed) > 1) speedTag = "MODERATE"
       if(parseFloat(speed) > 2) speedTag = "SLOW"
 
-      // Don't log status or own messages
       if(from !== 'status@broadcast'){
         console.log(chalk.hex('#00FFFF')("┌─ ◇ BREAKER-ULTRA ◇"))
         console.log(chalk.hex('#FFD700')(`│ Message Type: ${mtype}`))
@@ -83,7 +124,7 @@ Type *${PREFIX}menu* to see all commands`
       }
     }catch(e){}
 
-    // COMMAND HANDLER
+    if(!body) return
     if(![".", "!", "/"].some(p=>body.startsWith(p))) return
     const prefix = body[0]
     const args = body.slice(1).trim().split(/ +/)
