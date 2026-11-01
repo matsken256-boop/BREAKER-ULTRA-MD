@@ -8,14 +8,10 @@ module.exports = async (sock, msg, args, from) => {
     const search = await yts(query)
     const video = search.videos[0]
     if(!video) return await sock.sendMessage(from,{text:"❌ Song not found"}, {quoted:msg})
-
-    // This will look exactly like your screenshot
     await sock.sendMessage(from,{text:`🎵 *Found:* ${video.title}\n⏳ Downloading 4-5MB...`}, {quoted:msg})
 
     const info = await ytdl.getInfo(video.url)
     const audio = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' })
-
-    // SEND LIKE YOUR SCREENSHOT - AUDIO NOT DOCUMENT!
     await sock.sendMessage(from,{
       audio: { url: audio.url },
       mimetype: 'audio/mpeg',
