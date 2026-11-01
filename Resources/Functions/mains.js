@@ -1,6 +1,8 @@
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const chalk = require('chalk')
+const moment = require('moment-timezone')
 
 const PLUGINS_DIR = path.join(__dirname, '../Plugins')
 const BOT_NAME = "BREAKER-ULTRA MD"
@@ -49,9 +51,39 @@ Type *${PREFIX}menu* to see all commands`
 
     if(!msg.message) return
     const from = msg.key.remoteJid
+    const sender = msg.key.participant || from
     const pushName = msg.pushName || from.split('@')[0]
-    let body = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
-    if(!body) return
+    
+    // GET MESSAGE CONTENT FOR LOGGER
+    let body = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || msg.message.videoMessage?.caption || msg.message.reactionMessage?.text || msg.message.stickerMessage ? "Sticker" : ""
+    if(!body) body = Object.keys(msg.message)[0] || "N/A"
+    
+    // ===== BEAUTIFUL CYPHER-X STYLE CONSOLE LOGGER =====
+    try{
+      const start = Date.now()
+      const mtype = Object.keys(msg.message)[0]
+      const time = moment.tz('Africa/Kampala').format('dddd, HH:mm:ss')
+      const speed = ((Date.now() - start)/1000).toFixed(3)
+      let speedTag = "FAST"
+      if(parseFloat(speed) > 1) speedTag = "MODERATE"
+      if(parseFloat(speed) > 2) speedTag = "SLOW"
+
+      // Don't log status or own messages
+      if(from !== 'status@broadcast'){
+        console.log(chalk.hex('#00FFFF')("┌─ ◇ BREAKER-ULTRA ◇"))
+        console.log(chalk.hex('#FFD700')(`│ Message Type: ${mtype}`))
+        console.log(chalk.hex('#FF69B4')(`│ Message Time: ${time} EAT`))
+        console.log(chalk.hex('#7FFF00')(`│ Speed: ${speed}s [ ${speedTag} ]`))
+        console.log(chalk.hex('#1E90FF')(`│ Sender: ${sender}`))
+        console.log(chalk.hex('#FFA500')(`│ Name: ${pushName}`))
+        console.log(chalk.hex('#ADFF2F')(`│ Chat ID: ${from}`))
+        const shortMsg = String(body).substring(0,80).replace(/\n/g, " ")
+        console.log(chalk.hex('#FFFFFF')(`│ Message: ${shortMsg}`))
+        console.log(chalk.hex('#00FFFF')("└──────────────────────────────\n"))
+      }
+    }catch(e){}
+
+    // COMMAND HANDLER
     if(![".", "!", "/"].some(p=>body.startsWith(p))) return
     const prefix = body[0]
     const args = body.slice(1).trim().split(/ +/)
@@ -68,6 +100,7 @@ Type *${PREFIX}menu* to see all commands`
         if(p && typeof p.default === 'function'){ await p.default(sock, msg, args, from, {pushName,prefix,command}); return }
         if(p && typeof p.run === 'function'){ await p.run(sock, msg, args, from, {pushName,prefix,command}); return }
       }catch(e){
+        console.log(chalk.red(`❌ Error in ${command}: ${e.message}`))
         await sock.sendMessage(from, {text:`❌ Error in *${command}*:\n${e.message}`}, {quoted: msg})
         return
       }
