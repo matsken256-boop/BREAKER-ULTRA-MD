@@ -1,8 +1,29 @@
-const axios = require('axios')
+const yts = require('yt-search')
+const ytdl = require('@distube/ytdl-core')
+
 module.exports = async (sock, msg, args, from) => {
-  if(!args[0]) return await sock.sendMessage(from,{text:"❌ .song <song name>\nEx: .song calm down"}, {quoted:msg})
+  if(!args[0]) return await sock.sendMessage(from,{text:"❌ Use: .song njagala sente master parrot\nNo link needed, just song name!"}, {quoted:msg})
+  const query = args.join(' ')
   try{
-    let {data} = await axios.get(`https://api.akuari.my.id/downloader/youtube?link=https://www.youtube.com/results?search_query=${args.join('+')}`)
-    await sock.sendMessage(from,{audio:{url:data.mp3},mimetype:'audio/mpeg',fileName:args.join(' ')+'.mp3'}, {quoted:msg})
-  }catch(e){ await sock.sendMessage(from,{text:"❌ Not found"}, {quoted:msg}) }
+    const search = await yts(query)
+    const video = search.videos[0]
+    if(!video) return await sock.sendMessage(from,{text:"❌ Song not found"}, {quoted:msg})
+
+    // This will look exactly like your screenshot
+    await sock.sendMessage(from,{text:`🎵 *Found:* ${video.title}\n⏳ Downloading 4-5MB...`}, {quoted:msg})
+
+    const info = await ytdl.getInfo(video.url)
+    const audio = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' })
+
+    // SEND LIKE YOUR SCREENSHOT - AUDIO NOT DOCUMENT!
+    await sock.sendMessage(from,{
+      audio: { url: audio.url },
+      mimetype: 'audio/mpeg',
+      fileName: `${video.title}.mp3`
+    }, {quoted:msg})
+
+  }catch(e){
+    console.log(e)
+    await sock.sendMessage(from,{text:`❌ Error: ${e.message}`}, {quoted:msg})
+  }
 }
