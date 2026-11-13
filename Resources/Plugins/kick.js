@@ -4,6 +4,29 @@ module.exports = {
   category: 'Group',
   desc: 'Kick a user from group',
   async run(sock, m, args, { isGroup, isAdmin, isBotAdmin, isOwner }) {
+    
+    // --- FIX START ---
+    if (!m.chat) m.chat = m.key?.remoteJid || m.key?.remoteJid;
+    if (!m.reply) {
+      m.reply = async (text) => {
+        return await sock.sendMessage(m.chat, { text: text }, { quoted: m });
+      };
+    }
+    // Fix mentionedJid & quoted
+    if (!m.mentionedJid) {
+      m.mentionedJid = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    }
+    if (!m.quoted) {
+      let ctx = m.message?.extendedTextMessage?.contextInfo;
+      if (ctx?.quotedMessage) {
+        m.quoted = {
+          sender: ctx.participant,
+          message: ctx.quotedMessage
+        };
+      }
+    }
+    // --- FIX END ---
+
     if (!isGroup) return m.reply('❌ Groups only');
     if (!isAdmin && !isOwner) return m.reply('❌ Only admins');
     if (!isBotAdmin) return m.reply('❌ Bot needs to be admin');
@@ -22,7 +45,8 @@ module.exports = {
     try {
       await sock.groupParticipantsUpdate(m.chat, [target], 'remove');
       await sock.sendMessage(m.chat, {
-        text: `✅ User removed successfully!`
+        text: `✅ @${target.split('@')[0]} removed successfully!`,
+        mentions: [target]
       }, { quoted: m });
     } catch {
       return m.reply('❌ Failed to kick, make sure bot is admin');
