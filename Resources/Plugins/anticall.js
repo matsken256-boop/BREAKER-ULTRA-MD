@@ -1,29 +1,31 @@
 module.exports = {
-  command: ["anticall"],
-  async execute(client, m, args) {
+  name: "anticall",
+  alias: ["call"],
+  category: "owner",
+  desc: "Enable/disable anticall",
+  isOwner: true,
+  execute: async (client, m, args) => {
     if (!global.db.settings) global.db.settings = {};
     if (!global.db.settings.anticall) global.db.settings.anticall = { decline: false, block: false };
 
     const mode = args[0]?.toLowerCase();
 
     if (!mode) {
-      return client.sendMessage(m.key.remoteJid, { text: `📞 *ANTICALL*\n\nCurrent: Decline=${global.db.settings.anticall.decline ? 'ON' : 'OFF'} | Block=${global.db.settings.anticall.block ? 'ON' : 'OFF'}\n\n.anticall decline - Only reject\n.anticall block - Reject + Block\n.anticall off - Turn off` }, { quoted: m });
+      const s = global.db.settings.anticall;
+      return m.reply(`*BREAKER-ULTRA MD ANTICALL*\n\n> Decline: ${s.decline ? 'ON' : 'OFF'}\n> Block: ${s.block ? 'ON' : 'OFF'}\n\n.anticall decline\n.anticall block\n.anticall off`);
     }
 
     if (mode === "decline") {
-      global.db.settings.anticall.decline = true;
-      global.db.settings.anticall.block = false;
-      return client.sendMessage(m.key.remoteJid, { text: "✅ Anticall set to DECLINE mode" }, { quoted: m });
+      global.db.settings.anticall = { decline: true, block: false };
+      return m.reply("✅ Anticall set to *DECLINE* only");
     }
     if (mode === "block") {
-      global.db.settings.anticall.decline = true;
-      global.db.settings.anticall.block = true;
-      return client.sendMessage(m.key.remoteJid, { text: "✅ Anticall set to BLOCK mode" }, { quoted: m });
+      global.db.settings.anticall = { decline: true, block: true };
+      return m.reply("✅ Anticall set to *BLOCK* (reject + block)");
     }
     if (mode === "off") {
-      global.db.settings.anticall.decline = false;
-      global.db.settings.anticall.block = false;
-      return client.sendMessage(m.key.remoteJid, { text: "❌ Anticall OFF" }, { quoted: m });
+      global.db.settings.anticall = { decline: false, block: false };
+      return m.reply("❌ Anticall OFF");
     }
   }
 };
