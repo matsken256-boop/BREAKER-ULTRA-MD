@@ -1,4 +1,3 @@
-// start.js - just starts the socket, nothing else
 const path = require('path')
 
 const sessionId = process.argv[3] || process.env.SESSION_ID || 'breaker'
