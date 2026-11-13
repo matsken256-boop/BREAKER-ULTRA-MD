@@ -4,15 +4,12 @@ module.exports = {
   category: 'Group',
   desc: 'Kick a user from group',
   async run(sock, m, args, { isGroup, isAdmin, isBotAdmin, isOwner }) {
-    
-    // --- FIX START ---
-    if (!m.chat) m.chat = m.key?.remoteJid || m.key?.remoteJid;
+    if (!m.chat) m.chat = m.key?.remoteJid;
     if (!m.reply) {
       m.reply = async (text) => {
         return await sock.sendMessage(m.chat, { text: text }, { quoted: m });
       };
     }
-    // Fix mentionedJid & quoted
     if (!m.mentionedJid) {
       m.mentionedJid = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
     }
@@ -25,7 +22,6 @@ module.exports = {
         };
       }
     }
-    // --- FIX END ---
 
     if (!isGroup) return m.reply('❌ Groups only');
     if (!isAdmin && !isOwner) return m.reply('❌ Only admins');
