@@ -1,6 +1,6 @@
-// Group - Antilink
 const fs = require('fs');
 const path = './database/antilink.json';
+const warnPath = './database/warns.json';
 const allowPath = './database/allowed.json';
 
 function getDB(p) {
@@ -8,60 +8,107 @@ function getDB(p) {
   return JSON.parse(fs.readFileSync(p));
 }
 
-const LINK_REGEX = /(https?:\/\/|www\.|wa\.me\/|t\.me\/|chat\.whatsapp\.com\/)/i;
+const LINK_REGEX = /(https?:\/\/|www\.|wa\.me\/|t\.me\/|chat\.whatsapp\.com\/|discord\.gg\/)/i;
 
 module.exports = {
   name: 'antilink',
   alias: [],
   category: 'Group',
-  desc: 'Turn antilink on/off',
+  desc: 'Antilink kick / delete / warn',
   async run(sock, m, args, { isGroup, isAdmin }) {
     if (!isGroup) return m.reply('❌ Groups only');
     if (!isAdmin) return m.reply('❌ Only admins');
 
     let db = getDB(path);
-    let action = args[0]?.toLowerCase();
+    let mode = args[0]?.toLowerCase();
+    let action = args[1]?.toLowerCase();
 
-    if (action === 'on') {
-      db[m.chat] = 'kick'; // default action = kick
+    if (mode === 'kick' && action === 'on') {
+      db[m.chat] = 'kick';
       fs.writeFileSync(path, JSON.stringify(db, null, 2));
-      return m.reply('✅ Antilink ON - links will be deleted + sender kicked');
+      return m.reply('Successfully enabled antilink kick mode!');
     }
-    if (action === 'off') {
-      delete db[m.chat];
+    if (mode === 'delete' && action === 'on') {
+      db[m.chat] = 'delete';
       fs.writeFileSync(path, JSON.stringify(db, null, 2));
-      return m.reply('❌ Antilink OFF');
+      return m.reply('Successfully enabled antilink delete mode!');
     }
-    // .antilink warn - only warn, don't kick
-    if (action === 'warn') {
+    if (mode === 'warn' && action === 'on') {
       db[m.chat] = 'warn';
       fs.writeFileSync(path, JSON.stringify(db, null, 2));
-      return m.reply('⚠️ Antilink set to WARN only');
+      return m.reply('Successfully enabled antilink warn mode!');
     }
-    return m.reply(`Antilink is currently: *${db[m.chat] ? 'ON ('+db[m.chat]+')' : 'OFF'}*\nUsage: *.antilink on / warn / off*`);
+    if (mode === 'off' || action === 'off') {
+      delete db[m.chat];
+      fs.writeFileSync(path, JSON.stringify(db, null, 2));
+      return m.reply('Successfully disabled antilink!');
+    }
+
+    return m.reply(`Antilink: *${db[m.chat] ? db[m.chat] + ' mode' : 'OFF'}*\nUsage:\n.antilink kick on\n.antilink delete on\n.antilink warn on\n.antilink off`);
   },
-  // For your main handler - checks every message
+
   async onMessage(sock, m, { isGroup, isAdmin }) {
     if (!isGroup) return;
-    if (isAdmin) return; // admins can send links
+    if (isAdmin) return;
     if (m.key.fromMe) return;
     let db = getDB(path);
     if (!db[m.chat]) return;
 
     let allowed = getDB(allowPath);
-    if (allowed[m.chat]?.includes(m.sender)) return; // allowed by .allow
+    if (allowed[m.chat]?.includes(m.sender)) return;
 
     let text = m.text || '';
     if (!LINK_REGEX.test(text)) return;
 
     try {
-      await sock.sendMessage(m.chat, { delete: m.key });
-      if (db[m.chat] === 'kick') {
+      let mode = db[m.chat];
+
+      if (mode === 'kick') {
+        await sock.sendMessage(m.chat, { delete: m.key });
+        await sock.sendMessage(m.chat, {
+          text: `LINK DETECTED\n\n@${m.sender.split('@')[0]} Beware, links are not allowed in this group! ⚠️`,
+          mentions: [m.sender]
+        });
+        await new Promise(r => setTimeout(r, 800));
         await sock.groupParticipantsUpdate(m.chat, [m.sender], 'remove');
-        await sock.sendMessage(m.chat, { text: `🚫 @${m.sender.split('@')[0]} kicked for sending link`, mentions: [m.sender] });
-      } else {
-        await sock.sendMessage(m.chat, { text: `⚠️ @${m.sender.split('@')[0]} Links are not allowed here`, mentions: [m.sender] });
       }
+
+      if (mode === 'delete') {
+        await sock.sendMessage(m.chat, { delete: m.key });
+        await sock.sendMessage(m.chat, {
+          text: `LINK DETECTED\n\n@${m.sender.split('@')[0]} Beware, links are not allowed in this group! ⚠️`,
+          mentions: [m.sender]
+        });
+      }
+
+      if (mode === 'warn') {
+        let warns = getDB(warnPath);
+        let key = m.chat + '_' + m.sender;
+        if (!warns[key]) warns[key] = { count: 0, reasons: [] };
+        warns[key].count += 1;
+        warns[key].reasons.push('antilink');
+        let remaining = 5 - warns[key].count;
+        fs.writeFileSync(warnPath, JSON.stringify(warns, null, 2));
+
+        await sock.sendMessage(m.chat, { delete: m.key });
+
+        if (remaining <= 0) {
+          await sock.sendMessage(m.chat, {
+            text: `LINK DETECTED\n\n@${m.sender.split('@')[0]} Beware, links are not allowed in this group! ⚠️\nRemaining warnings: 0\nYou have used all warnings, you will be kicked.`,
+            mentions: [m.sender]
+          });
+          delete warns[key];
+          fs.writeFileSync(warnPath, JSON.stringify(warns, null, 2));
+          await new Promise(r => setTimeout(r, 800));
+          await sock.groupParticipantsUpdate(m.chat, [m.sender], 'remove');
+        } else {
+          await sock.sendMessage(m.chat, {
+            text: `LINK DETECTED\n\n@${m.sender.split('@')[0]} Beware, links are not allowed in this group! ⚠️\nRemaining warnings: ${remaining}\nUse resetwarn to reset.`,
+            mentions: [m.sender]
+          });
+        }
+      }
+
     } catch {}
   }
 };
