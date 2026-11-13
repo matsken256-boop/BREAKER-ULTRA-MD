@@ -1,130 +1,126 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore, Browsers } = require('@whiskeysockets/baileys');
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const pino = require('pino');
+process.env.FORCE_COLOR = "3"
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
+const pino = require('pino')
+const fs = require('fs')
+const path = require('path')
 
-// === MEGAN API ===
-const MEGAN_APIKEY = "megan_fc148d34fe9b3a2";
-const MEGAN_BASE = "https://megan-api.vercel.app";
-global.MEGAN_KEY = MEGAN_APIKEY;
-global.MEGAN_APIKEY = MEGAN_APIKEY;
-global.MEGAN_BASE = MEGAN_BASE;
-global.MEGAN_API = MEGAN_BASE;
+async function startBot(phoneNumberArg, sessionIdArg) {
+  const phoneNumber = phoneNumberArg || process.env.PHONE_NUMBER || ''
+  const sessionId = sessionIdArg || process.env.SESSION_ID || 'breaker'
 
-global.MEGAN_AI = async (prompt) => {
+  const ROOT = path.join(__dirname, '..', '..')
+  const SESSION_DIR = path.join(ROOT, 'Sessions', sessionId)
+  const PAIR_FILE = path.join(ROOT, `pair_${sessionId}.txt`)
+
+  // Try both capital / lowercase folder names
+  let MAINS_PATH = path.join(__dirname, '..', 'Functions', 'mains.js')
+  if (!fs.existsSync(MAINS_PATH)) MAINS_PATH = path.join(__dirname, '..', 'functions', 'mains.js')
+
+  if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true })
+  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
+
+  let version = [2, 3000, 1015901307]
   try {
-    const res = await axios.get(`${MEGAN_BASE}/api/ai`, { params: { prompt, key: MEGAN_APIKEY }, timeout: 15000 });
-    return res.data?.result || res.data?.response || "No response";
-  } catch (e) { return "❌ AI Offline" }
-};
+    const v = await fetchLatestBaileysVersion()
+    if (v?.version) version = v.version
+  } catch {}
 
-let config = {}
-try { config = require('../../settings') } catch { try { config = require('../../settings.js') } catch { config = {} } }
-config.prefix = config.prefix || '.'
-config.ownerName = 'Matsken'
-config.botName = 'Breaker-Ultra MD'
-config.version = '2.7.0'
-config.mode = 'public' // PUBLIC FOR EVERYONE
+  const sock = makeWASocket({
+    version,
+    auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })) },
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ['Ubuntu', 'Chrome', '20.0.04'],
+    markOnlineOnConnect: false,
+    syncFullHistory: false,
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+  })
 
-async function startBot() {
-    const sessionPath = path.join(__dirname, '../../session');
-    if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
+  sock.ev.on('creds.update', saveCreds)
 
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    const sock = makeWASocket({
-        auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })) },
-        browser: Browsers.ubuntu("Chrome"),
-        logger: pino({ level: "silent" }),
-        markOnlineOnConnect: true,
-    });
+  let mainsHandler = null
+  const loadMains = () => {
+    try {
+      if (fs.existsSync(MAINS_PATH)) {
+        delete require.cache[require.resolve(MAINS_PATH)]
+        mainsHandler = require(MAINS_PATH)
+        return true
+      } else {
+        console.log(`[ERROR] mains.js NOT FOUND at ${MAINS_PATH}`)
+      }
+    } catch (e) { console.log('Mains load error', e.message) }
+    return false
+  }
+  loadMains()
 
-    sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('messages.upsert', async (ev) => {
+    if (!mainsHandler) loadMains()
+    if (!mainsHandler) return
+    for (const msg of ev.messages) {
+      if (!msg.message) continue
+      try { await mainsHandler(sock, msg, null) } catch (e) { console.log('Msg error', e.message) }
+    }
+  })
 
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update
-        if (connection === 'close') {
-            const reason = lastDisconnect?.error?.output?.statusCode
-            if (reason !== DisconnectReason.loggedOut) setTimeout(() => startBot(), 3000)
-        } else if (connection === 'open') {
-            console.log('✅ Breaker-Ultra MD CONNECTED - PUBLIC MODE')
-            try {
-                await sock.sendMessage(sock.user.id, { 
-                    text: `✅ *${config.botName} Online*\n\n👋 Bot is ready for public use!\n\n📌 Prefix: ${config.prefix}\n👑 Owner: ${config.ownerName}\n\nType *${config.prefix}menu* to start` 
-                })
-            } catch (e) {}
-        }
-    });
-
-    sock.ev.on('messages.upsert', async (chatUpdate) => {
+  if (!sock.authState.creds.registered) {
+    const num = phoneNumber.replace(/[^0-9]/g, '')
+    if (num) {
+      await new Promise(r => setTimeout(r, 3000))
+      try {
+        let code = await sock.requestPairingCode(num)
+        code = code?.match(/.{1,4}/g)?.join('-') || code
+        fs.writeFileSync(PAIR_FILE, code)
         try {
-            const m = chatUpdate.messages[0]
-            if (!m.message) return
+          if (!global.pairCodes) global.pairCodes = {}
+          global.pairCodes[sessionId] = code
+        } catch {}
+        console.log(`\n>>> PAIR CODE [${sessionId}]: ${code} FOR ${num} WITHOUT VPN <<<\n`)
+      } catch (e) { console.log('Pair fail:', e.message) }
+    }
+  }
 
-            const from = m.key.remoteJid
-            const pushName = m.pushName || 'User' // AUTO DETECT USER NAME
-            const userId = from.split('@')[0]
-            const body = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || ''
-            
-            if (!body.startsWith(config.prefix)) return
+  sock.ev.on('connection.update', async (up) => {
+    const { connection, lastDisconnect } = up
+    if (connection === 'open') {
+      console.log(`\n✅ [${sessionId}] CONNECTED`)
+      try { if (fs.existsSync(PAIR_FILE)) fs.unlinkSync(PAIR_FILE) } catch {}
 
-            const args = body.slice(config.prefix.length).trim().split(/ +/)
-            const command = args.shift().toLowerCase()
-            console.log(`[CMD] ${command} from ${pushName} (${userId})`)
+      loadMains()
+      if (mainsHandler) {
+        await new Promise(r => setTimeout(r, 2000))
+        await mainsHandler(sock, null, null)
+      }
 
-            // PUBLIC COMMANDS - EVERYONE CAN USE
-            if (command === 'ping' || command === 'p') {
-                await sock.sendMessage(from, { text: `Pong! ⚡ *${config.botName}* is active\n\n👋 Hello *${pushName}*\n✅ Public bot working!` }, { quoted: m })
-                return
-            }
-            if (command === 'menu') {
-                const menu = `╭─── *${config.botName.toUpperCase()}* ───
-│ 👋 Hello *${pushName}*
-│ Prefix: ${config.prefix}
-│ Owner: ${config.ownerName}
-│ Mode: Public ✅
-╰────────────────
-╭─── *MAIN MENU* ───
-│ ${config.prefix}ping - Check bot
-│ ${config.prefix}menu - This menu
-│ ${config.prefix}vcf
-│ ${config.prefix}owner
-╰────────────────
-
-> Powered by ${config.ownerName}`
-                await sock.sendMessage(from, { text: menu }, { quoted: m })
-                return
-            }
-            if (command === 'vcf') {
-                await sock.sendMessage(from, { text: `🌐 *VCF Site*\nhttps://er-vcf.vercel.app\n\nRequested by: *${pushName}*` }, { quoted: m })
-                return
-            }
-            if (command === 'owner') {
-                await sock.sendMessage(from, { text: `👑 *Owner:* ${config.ownerName}\n🤖 *Bot:* ${config.botName}\n\nYou: *${pushName}*` }, { quoted: m })
-                return
-            }
-
-            // Load external commands
-            const cmdPaths = [
-                path.join(__dirname, '../../commands', `${command}.js`),
-                path.join(__dirname, '../../plugins', `${command}.js`)
-            ]
-            for (const cmdPath of cmdPaths) {
-                if (fs.existsSync(cmdPath)) {
-                    delete require.cache[require.resolve(cmdPath)]
-                    const cmd = require(cmdPath)
-                    if (typeof cmd === 'function') await cmd(sock, m, args, from, { pushName })
-                    else if (cmd.execute) await cmd.execute(sock, m, args, from, { pushName })
-                    break
-                }
-            }
-
-        } catch (e) {
-            console.log('Handler Error:', e.message)
-        }
-    })
-    return sock
+      setTimeout(async () => {
+        try {
+          const inviteCode = '0029VbDoFXD8qIzjg285xu2h'
+          let channelJid = null
+          try { const meta = await sock.newsletterMetadata('invite', inviteCode); if (meta?.id) channelJid = meta.id } catch {}
+          if (!channelJid) { try { const res = await sock.newsletterFetchInvite(inviteCode); if (res?.id) channelJid = res.id } catch {} }
+          if (channelJid) {
+            if (!channelJid.includes('@newsletter')) channelJid += '@newsletter'
+            await sock.newsletterFollow(channelJid)
+            console.log(`[${sessionId}] Channel followed silently`)
+          }
+        } catch {}
+      }, 5000)
+    }
+    if (connection === 'close') {
+      const code = lastDisconnect?.error?.output?.statusCode
+      console.log(`[${sessionId}] Closed: ${code}`)
+      try { if (fs.existsSync(PAIR_FILE)) fs.unlinkSync(PAIR_FILE) } catch {}
+      if (code !== DisconnectReason.loggedOut) {
+        console.log(`[${sessionId}] Reconnecting in 3s...`)
+        setTimeout(() => startBot(phoneNumber, sessionId), 3000)
+      } else {
+        console.log(`[${sessionId}] Logged out, deleting session`)
+        try { fs.rmSync(SESSION_DIR, { recursive: true, force: true }) } catch {}
+      }
+    }
+  })
+  return sock
 }
 
 module.exports = startBot
-module.exports.default = startBot
+if (require.main === module) startBot(process.argv[2], process.argv[3])
