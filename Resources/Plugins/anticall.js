@@ -4,7 +4,18 @@ module.exports = {
   category: "owner",
   desc: "Enable/disable anticall",
   isOwner: true,
+  async run(sock, m, args) {
+    return this.execute(sock, m, args);
+  },
   execute: async (client, m, args) => {
+    if (!m.chat) m.chat = m.key?.remoteJid;
+    if (!m.reply) {
+      m.reply = async (text) => {
+        return await client.sendMessage(m.chat, { text: text }, { quoted: m });
+      };
+    }
+
+    if (!global.db) global.db = {};
     if (!global.db.settings) global.db.settings = {};
     if (!global.db.settings.anticall) global.db.settings.anticall = { decline: false, block: false };
 
