@@ -5,7 +5,7 @@ const allowPath = './database/allowed.json';
 
 function getDB(p) {
   if (!fs.existsSync(p)) return {};
-  return JSON.parse(fs.readFileSync(p));
+  try { return JSON.parse(fs.readFileSync(p)); } catch { return {}; }
 }
 
 const LINK_REGEX = /(https?:\/\/|www\.|wa\.me\/|t\.me\/|chat\.whatsapp\.com\/|discord\.gg\/)/i;
@@ -16,6 +16,14 @@ module.exports = {
   category: 'Group',
   desc: 'Antilink kick / delete / warn',
   async run(sock, m, args, { isGroup, isAdmin }) {
+    // FIX: Make m.reply work
+    if (!m.reply) {
+      m.reply = async (text) => {
+        return await sock.sendMessage(m.chat || m.key.remoteJid, { text: text });
+      };
+    }
+    if (!m.chat) m.chat = m.key.remoteJid;
+
     if (!isGroup) return m.reply('❌ Groups only');
     if (!isAdmin) return m.reply('❌ Only admins');
 
@@ -51,6 +59,11 @@ module.exports = {
     if (!isGroup) return;
     if (isAdmin) return;
     if (m.key.fromMe) return;
+    
+    if (!m.chat) m.chat = m.key.remoteJid;
+    if (!m.sender) m.sender = m.key.participant || m.key.remoteJid;
+    if (!m.text) m.text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+
     let db = getDB(path);
     if (!db[m.chat]) return;
 
