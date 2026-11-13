@@ -71,6 +71,10 @@ module.exports = {
         });
         await new Promise(r => setTimeout(r, 800));
         await sock.groupParticipantsUpdate(m.chat, [m.sender], 'remove');
+        await sock.sendMessage(m.chat, {
+          text: `@${m.sender.split('@')[0]} removed successfully ✅`,
+          mentions: [m.sender]
+        });
       }
 
       if (mode === 'delete') {
@@ -101,6 +105,10 @@ module.exports = {
           fs.writeFileSync(warnPath, JSON.stringify(warns, null, 2));
           await new Promise(r => setTimeout(r, 800));
           await sock.groupParticipantsUpdate(m.chat, [m.sender], 'remove');
+          await sock.sendMessage(m.chat, {
+            text: `@${m.sender.split('@')[0]} removed successfully ✅`,
+            mentions: [m.sender]
+          });
         } else {
           await sock.sendMessage(m.chat, {
             text: `LINK DETECTED\n\n@${m.sender.split('@')[0]} Beware, links are not allowed in this group! ⚠️\nRemaining warnings: ${remaining}\nUse resetwarn to reset.`,
