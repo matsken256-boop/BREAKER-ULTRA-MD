@@ -4,6 +4,13 @@ module.exports = {
   category: 'Group',
   desc: 'Add a user to group',
   async run(sock, m, args, { isGroup, isAdmin, isBotAdmin, isOwner }) {
+    if (!m.chat) m.chat = m.key?.remoteJid;
+    if (!m.reply) {
+      m.reply = async (text) => {
+        return await sock.sendMessage(m.chat, { text: text }, { quoted: m });
+      };
+    }
+
     if (!isGroup) return m.reply('❌ Groups only');
     if (!isAdmin && !isOwner) return m.reply('❌ Only admins');
     if (!isBotAdmin) return m.reply('❌ Bot needs to be admin');
